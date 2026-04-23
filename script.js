@@ -2956,6 +2956,9 @@ const els = {
   editorFile: document.querySelector("#editor-file"),
   editorMode: document.querySelector("#editor-mode"),
   editorTrackPill: document.querySelector("#editor-track-pill"),
+  editorShortcutPrimary: document.querySelector("#editor-shortcut-primary"),
+  editorShortcutSecondary: document.querySelector("#editor-shortcut-secondary"),
+  editorShortcutTertiary: document.querySelector("#editor-shortcut-tertiary"),
   feedback: document.querySelector("#feedback"),
   hintButton: document.querySelector("#hint-button"),
   rescueButton: document.querySelector("#rescue-button"),
@@ -3090,18 +3093,21 @@ function getPracticeEditorMeta() {
       mode: "HTML",
       status: "HTML",
       placeholder: "Escribi tu HTML aca. No hace falta que sea perfecto.",
+      shortcuts: ["Tab/Enter expande", "Ctrl+Enter comprueba", "Ctrl+/ comenta"],
     },
     css: {
       file: "reto.css",
       mode: "CSS",
       status: "CSS",
       placeholder: "Escribi tu CSS aca. Una regla por vez alcanza.",
+      shortcuts: ["Tab/Enter snippet", "Ctrl+Enter comprueba", "Ctrl+/ comenta"],
     },
     js: {
       file: "reto.js",
       mode: "JavaScript",
       status: "JS",
       placeholder: "Escribi tu JS aca. Proba aunque sea una linea.",
+      shortcuts: ["Tab/Enter snippet", "Ctrl+Enter comprueba", "Ctrl+/ comenta"],
     },
   }[state.track];
 }
@@ -3128,6 +3134,8 @@ function renderPracticeEditor() {
   els.editorMode.textContent = meta.mode;
   els.editorTrackPill.textContent = meta.status;
   els.answerInput.placeholder = meta.placeholder;
+  [els.editorShortcutPrimary.textContent, els.editorShortcutSecondary.textContent, els.editorShortcutTertiary.textContent] =
+    meta.shortcuts;
   els.answerLines.innerHTML = Array.from(
     { length: lineCount },
     (_item, index) =>
@@ -3172,6 +3180,133 @@ const HTML_VOID_TAGS = new Set([
 const CURSOR_START_MARK = "__AULA_CURSOR_START__";
 const CURSOR_END_MARK = "__AULA_CURSOR_END__";
 
+const TRACK_SNIPPETS = {
+  html: {
+    a: `<a href="">${CURSOR_START_MARK}Link${CURSOR_END_MARK}</a>`,
+    img: `<img src="${CURSOR_START_MARK}./archivos/imagenes/${CURSOR_END_MARK}" alt="">`,
+    btn: `<button type="button">${CURSOR_START_MARK}Boton${CURSOR_END_MARK}</button>`,
+    "btn:submit": `<button type="submit">${CURSOR_START_MARK}Enviar${CURSOR_END_MARK}</button>`,
+    "link:css": `<link rel="stylesheet" href="${CURSOR_START_MARK}./styles/index.css${CURSOR_END_MARK}">`,
+    "script:src": `<script src="${CURSOR_START_MARK}./script.js${CURSOR_END_MARK}"></script>`,
+    "script:module": `<script type="module" src="${CURSOR_START_MARK}./script.js${CURSOR_END_MARK}"></script>`,
+    "input:text": `<input type="text" name="${CURSOR_START_MARK}nombre${CURSOR_END_MARK}">`,
+    "input:email": `<input type="email" name="${CURSOR_START_MARK}correo${CURSOR_END_MARK}">`,
+    "input:password": `<input type="password" name="${CURSOR_START_MARK}clave${CURSOR_END_MARK}">`,
+    "input:number": `<input type="number" name="${CURSOR_START_MARK}cantidad${CURSOR_END_MARK}">`,
+    "input:checkbox": `<input type="checkbox" name="${CURSOR_START_MARK}acepta${CURSOR_END_MARK}">`,
+    "label:for": `<label for="${CURSOR_START_MARK}campo${CURSOR_END_MARK}">Texto</label>`,
+    "nav:ul": `<nav>
+  <ul>
+    <li><a href="">${CURSOR_START_MARK}Inicio${CURSOR_END_MARK}</a></li>
+  </ul>
+</nav>`,
+    "form:get": `<form method="get">
+  <label for="campo">${CURSOR_START_MARK}Campo${CURSOR_END_MARK}</label>
+  <input id="campo" name="campo" type="text">
+  <button type="submit">Enviar</button>
+</form>`,
+    "form:post": `<form method="post">
+  <label for="campo">${CURSOR_START_MARK}Campo${CURSOR_END_MARK}</label>
+  <input id="campo" name="campo" type="text">
+  <button type="submit">Enviar</button>
+</form>`,
+    "table:basic": `<table>
+  <thead>
+    <tr>
+      <th>${CURSOR_START_MARK}Encabezado${CURSOR_END_MARK}</th>
+      <th>Dato</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Valor</td>
+      <td>Valor</td>
+    </tr>
+  </tbody>
+</table>`,
+    video: `<video controls src="${CURSOR_START_MARK}./video.mp4${CURSOR_END_MARK}"></video>`,
+    audio: `<audio controls src="${CURSOR_START_MARK}./audio.mp3${CURSOR_END_MARK}"></audio>`,
+    picture: `<picture>
+  <source srcset="${CURSOR_START_MARK}./imagen.webp${CURSOR_END_MARK}" type="image/webp">
+  <img src="./imagen.jpg" alt="">
+</picture>`,
+    card: `<article class="card">
+  <h2>${CURSOR_START_MARK}Titulo${CURSOR_END_MARK}</h2>
+  <p>Texto.</p>
+</article>`,
+  },
+  css: {
+    df: `display: ${CURSOR_START_MARK}flex${CURSOR_END_MARK};`,
+    dg: `display: ${CURSOR_START_MARK}grid${CURSOR_END_MARK};`,
+    db: `display: ${CURSOR_START_MARK}block${CURSOR_END_MARK};`,
+    dib: `display: ${CURSOR_START_MARK}inline-block${CURSOR_END_MARK};`,
+    aic: `align-items: ${CURSOR_START_MARK}center${CURSOR_END_MARK};`,
+    jcc: `justify-content: ${CURSOR_START_MARK}center${CURSOR_END_MARK};`,
+    jcsb: `justify-content: ${CURSOR_START_MARK}space-between${CURSOR_END_MARK};`,
+    jcsa: `justify-content: ${CURSOR_START_MARK}space-around${CURSOR_END_MARK};`,
+    fdc: `flex-direction: ${CURSOR_START_MARK}column${CURSOR_END_MARK};`,
+    fw: `flex-wrap: ${CURSOR_START_MARK}wrap${CURSOR_END_MARK};`,
+    bg: `background: ${CURSOR_START_MARK}#ffffff${CURSOR_END_MARK};`,
+    c: `color: ${CURSOR_START_MARK}#182126${CURSOR_END_MARK};`,
+    gap: `gap: ${CURSOR_START_MARK}12px${CURSOR_END_MARK};`,
+    br: `border-radius: ${CURSOR_START_MARK}8px${CURSOR_END_MARK};`,
+    shadow: `box-shadow: ${CURSOR_START_MARK}0 12px 24px rgba(0, 0, 0, 0.12)${CURSOR_END_MARK};`,
+    "pos:r": `position: ${CURSOR_START_MARK}relative${CURSOR_END_MARK};`,
+    "pos:a": `position: ${CURSOR_START_MARK}absolute${CURSOR_END_MARK};`,
+    "@m": `@media (max-width: ${CURSOR_START_MARK}700px${CURSOR_END_MARK}) {
+  
+}`,
+    "@kf": `@keyframes ${CURSOR_START_MARK}aparecer${CURSOR_END_MARK} {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}`,
+  },
+  js: {
+    clg: `console.log(${CURSOR_START_MARK}valor${CURSOR_END_MARK});`,
+    sel: `document.querySelector("${CURSOR_START_MARK}.selector${CURSOR_END_MARK}")`,
+    selall: `document.querySelectorAll("${CURSOR_START_MARK}.selector${CURSOR_END_MARK}")`,
+    ae: `addEventListener("${CURSOR_START_MARK}click${CURSOR_END_MARK}", () => {
+  
+});`,
+    fn: `function ${CURSOR_START_MARK}nombre${CURSOR_END_MARK}() {
+  
+}`,
+    afn: `const ${CURSOR_START_MARK}nombre${CURSOR_END_MARK} = () => {
+  
+};`,
+    if: `if (${CURSOR_START_MARK}condicion${CURSOR_END_MARK}) {
+  
+}`,
+    ife: `if (${CURSOR_START_MARK}condicion${CURSOR_END_MARK}) {
+  
+} else {
+  
+}`,
+    for: `for (let index = 0; index < ${CURSOR_START_MARK}items${CURSOR_END_MARK}.length; index += 1) {
+  
+}`,
+    fe: `${CURSOR_START_MARK}items${CURSOR_END_MARK}.forEach((item) => {
+  
+});`,
+    try: `try {
+  
+} catch (error) {
+  console.error(error);
+}`,
+    timeout: `setTimeout(() => {
+  
+}, ${CURSOR_START_MARK}1000${CURSOR_END_MARK});`,
+    interval: `setInterval(() => {
+  
+}, ${CURSOR_START_MARK}1000${CURSOR_END_MARK});`,
+  },
+};
+
 function getCurrentAnswerLineContext() {
   const value = els.answerInput.value;
   const { selectionStart, selectionEnd } = els.answerInput;
@@ -3192,6 +3327,19 @@ function getCurrentAnswerLineContext() {
     lineIndent,
     trimmedLine: lineText.trim(),
   };
+}
+
+function indentTemplate(template, lineIndent) {
+  return template
+    .split("\n")
+    .map((line) => `${lineIndent}${line}`)
+    .join("\n");
+}
+
+function replaceAnswerRange(start, end, replacement, relativeStart, relativeEnd = relativeStart) {
+  const value = els.answerInput.value;
+  const nextValue = `${value.slice(0, start)}${replacement}${value.slice(end)}`;
+  writeAnswer(nextValue, start + relativeStart, start + relativeEnd);
 }
 
 function replaceCurrentAnswerLine(lineStart, lineEnd, replacement) {
@@ -3216,6 +3364,70 @@ function replaceCurrentAnswerLine(lineStart, lineEnd, replacement) {
   }
 
   const nextValue = `${value.slice(0, lineStart)}${cleanReplacement}${value.slice(lineEnd)}`;
+  writeAnswer(nextValue, selectionStart, selectionEnd);
+}
+
+function getAnswerSelectionOrCurrentLine() {
+  const context = getCurrentAnswerLineContext();
+
+  if (context.selectionStart !== context.selectionEnd) {
+    return {
+      start: context.selectionStart,
+      end: context.selectionEnd,
+      text: context.value.slice(context.selectionStart, context.selectionEnd),
+    };
+  }
+
+  return {
+    start: context.lineStart,
+    end: context.lineEnd,
+    text: context.lineText,
+  };
+}
+
+function getLineIndexFromOffset(value, offset) {
+  return value.slice(0, offset).split("\n").length - 1;
+}
+
+function getAnswerLineSelection() {
+  const value = els.answerInput.value;
+  const { selectionStart, selectionEnd } = els.answerInput;
+  const lines = value.split("\n");
+  const startLine = getLineIndexFromOffset(value, selectionStart);
+  let endLine = getLineIndexFromOffset(value, selectionEnd);
+
+  if (selectionEnd > selectionStart && value[selectionEnd - 1] === "\n") {
+    endLine -= 1;
+  }
+
+  endLine = Math.max(startLine, endLine);
+
+  return {
+    value,
+    lines,
+    startLine,
+    endLine,
+  };
+}
+
+function getOffsetFromLineIndex(lines, targetLine, column = 0) {
+  let offset = column;
+
+  for (let index = 0; index < targetLine; index += 1) {
+    offset += lines[index].length + 1;
+  }
+
+  return offset;
+}
+
+function writeLineSelection(lines, startLine, endLine) {
+  const nextValue = lines.join("\n");
+  const selectionStart = getOffsetFromLineIndex(lines, startLine);
+  const selectionEnd =
+    endLine === lines.length - 1
+      ? nextValue.length
+      : getOffsetFromLineIndex(lines, endLine + 1);
+
   writeAnswer(nextValue, selectionStart, selectionEnd);
 }
 
@@ -3607,6 +3819,72 @@ function renderHtmlAbbreviation(nodes, baseIndent) {
     .join("\n");
 }
 
+function buildCssNumericSnippet(token) {
+  const match = token.match(
+    /^(m|mt|mr|mb|ml|mx|my|p|pt|pr|pb|pl|px|py|gap|br|fs|w|h|minw|minh|maxw|maxh)(-?\d+)$/,
+  );
+  if (!match) return null;
+
+  const [, key, rawValue] = match;
+  const value = `${rawValue}px`;
+  const snippets = {
+    m: `margin: ${value};`,
+    mt: `margin-top: ${value};`,
+    mr: `margin-right: ${value};`,
+    mb: `margin-bottom: ${value};`,
+    ml: `margin-left: ${value};`,
+    mx: `margin-inline: ${value};`,
+    my: `margin-block: ${value};`,
+    p: `padding: ${value};`,
+    pt: `padding-top: ${value};`,
+    pr: `padding-right: ${value};`,
+    pb: `padding-bottom: ${value};`,
+    pl: `padding-left: ${value};`,
+    px: `padding-inline: ${value};`,
+    py: `padding-block: ${value};`,
+    gap: `gap: ${value};`,
+    br: `border-radius: ${value};`,
+    fs: `font-size: ${value};`,
+    w: `width: ${value};`,
+    h: `height: ${value};`,
+    minw: `min-width: ${value};`,
+    minh: `min-height: ${value};`,
+    maxw: `max-width: ${value};`,
+    maxh: `max-height: ${value};`,
+  };
+
+  return snippets[key] || null;
+}
+
+function getTrackSnippetTemplate(track, token) {
+  const exact = TRACK_SNIPPETS[track]?.[token];
+  if (exact) return exact;
+
+  if (track === "css") {
+    return buildCssNumericSnippet(token);
+  }
+
+  return null;
+}
+
+function handleTrackSnippetShortcut(event) {
+  const context = getCurrentAnswerLineContext();
+
+  if (context.selectionStart !== context.selectionEnd || !context.trimmedLine) return false;
+
+  const template = getTrackSnippetTemplate(state.track, context.trimmedLine);
+  if (!template) return false;
+
+  event.preventDefault();
+  replaceCurrentAnswerLine(
+    context.lineStart,
+    context.lineEnd,
+    indentTemplate(template, context.lineIndent),
+  );
+
+  return true;
+}
+
 function handleHtmlBangShortcut(event) {
   const context = getCurrentAnswerLineContext();
 
@@ -3657,7 +3935,45 @@ function handleHtmlAbbreviationShortcut(event) {
 }
 
 function handleHtmlShortcut(event) {
-  return handleHtmlBangShortcut(event) || handleHtmlAbbreviationShortcut(event);
+  return (
+    handleHtmlBangShortcut(event) ||
+    handleTrackSnippetShortcut(event) ||
+    handleHtmlAbbreviationShortcut(event)
+  );
+}
+
+function handleHtmlTagAutocomplete(event) {
+  const value = els.answerInput.value;
+  const { selectionStart, selectionEnd } = els.answerInput;
+
+  if (
+    state.track !== "html" ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    selectionStart !== selectionEnd
+  ) {
+    return false;
+  }
+
+  const before = value.slice(0, selectionStart);
+  const after = value.slice(selectionEnd);
+  const lastOpenIndex = before.lastIndexOf("<");
+  const lastCloseIndex = before.lastIndexOf(">");
+
+  if (lastOpenIndex === -1 || lastOpenIndex < lastCloseIndex) return false;
+
+  const fragment = before.slice(lastOpenIndex + 1).trim();
+  if (!fragment || fragment.startsWith("/") || fragment.endsWith("/")) return false;
+  if (!/^[a-z][\w-]*(\s[^<>]*)?$/i.test(fragment)) return false;
+
+  const tag = fragment.match(/^[a-z][\w-]*/i)?.[0]?.toLowerCase();
+  if (!tag || HTML_VOID_TAGS.has(tag) || after.startsWith(">")) return false;
+
+  event.preventDefault();
+  replaceAnswerRange(selectionStart, selectionEnd, `></${tag}>`, 1);
+
+  return true;
 }
 
 function handleAnswerTab(event) {
@@ -3717,8 +4033,26 @@ function handleAnswerEnter(event) {
   const trimmedLine = currentLine.trimEnd();
   const previousChar = value[selectionStart - 1];
   const nextChar = value[selectionEnd];
+  const openTagMatch = value.slice(0, selectionStart).match(/<([a-z][\w-]*)(\s[^<>]*)?>$/i);
+  const closeTagMatch = value.slice(selectionEnd).match(/^<\/([a-z][\w-]*)>/i);
 
   event.preventDefault();
+
+  if (
+    state.track === "html" &&
+    selectionStart === selectionEnd &&
+    previousChar === ">" &&
+    openTagMatch &&
+    closeTagMatch &&
+    openTagMatch[1].toLowerCase() === closeTagMatch[1].toLowerCase()
+  ) {
+    const insert = `\n${indent}  \n${indent}`;
+    writeAnswer(
+      `${value.slice(0, selectionStart)}${insert}${value.slice(selectionEnd)}`,
+      selectionStart + indent.length + 3,
+    );
+    return;
+  }
 
   if (
     selectionStart === selectionEnd &&
@@ -3817,6 +4151,126 @@ function handleAnswerBackspace(event) {
     `${value.slice(0, selectionStart - 1)}${value.slice(selectionStart + 1)}`,
     selectionStart - 1,
   );
+}
+
+function handleCommentToggleShortcut(event) {
+  if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.key !== "/") return false;
+
+  event.preventDefault();
+
+  if (state.track === "js") {
+    const { lines, startLine, endLine } = getAnswerLineSelection();
+    const selected = lines.slice(startLine, endLine + 1);
+    const allCommented = selected
+      .filter((line) => line.trim())
+      .every((line) => line.trimStart().startsWith("//"));
+    const updated = selected.map((line) => {
+      if (!line.trim()) return line;
+
+      const indent = line.match(/^\s*/)?.[0] || "";
+      const rest = line.slice(indent.length);
+
+      if (allCommented) {
+        if (rest.startsWith("// ")) return `${indent}${rest.slice(3)}`;
+        if (rest.startsWith("//")) return `${indent}${rest.slice(2)}`;
+        return line;
+      }
+
+      return `${indent}// ${rest}`;
+    });
+
+    lines.splice(startLine, selected.length, ...updated);
+    writeLineSelection(lines, startLine, endLine);
+    return true;
+  }
+
+  const { start, end, text } = getAnswerSelectionOrCurrentLine();
+  const startMark = state.track === "html" ? "<!--" : "/*";
+  const endMark = state.track === "html" ? "-->" : "*/";
+  const leadingWhitespace = text.match(/^\s*/)?.[0] || "";
+  const trailingWhitespace = text.match(/\s*$/)?.[0] || "";
+  const core = text.slice(leadingWhitespace.length, text.length - trailingWhitespace.length);
+  const trimmedCore = core.trim();
+  let replacement = "";
+  let relativeStart = 0;
+  let relativeEnd = 0;
+
+  if (trimmedCore.startsWith(startMark) && trimmedCore.endsWith(endMark)) {
+    const uncommented = trimmedCore
+      .slice(startMark.length, trimmedCore.length - endMark.length)
+      .trim();
+    replacement = `${leadingWhitespace}${uncommented}${trailingWhitespace}`;
+    relativeStart = leadingWhitespace.length;
+    relativeEnd = leadingWhitespace.length + uncommented.length;
+  } else {
+    replacement = `${leadingWhitespace}${startMark} ${core} ${endMark}${trailingWhitespace}`;
+    relativeStart = leadingWhitespace.length;
+    relativeEnd = replacement.length - trailingWhitespace.length;
+  }
+
+  replaceAnswerRange(start, end, replacement, relativeStart, relativeEnd);
+  return true;
+}
+
+function handleSelectLineShortcut(event) {
+  if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey || event.key !== "l") {
+    return false;
+  }
+
+  event.preventDefault();
+
+  const context = getCurrentAnswerLineContext();
+  const selectionEnd = context.lineEnd === context.value.length ? context.lineEnd : context.lineEnd + 1;
+
+  els.answerInput.focus();
+  els.answerInput.selectionStart = context.lineStart;
+  els.answerInput.selectionEnd = selectionEnd;
+  renderPracticeEditor();
+
+  return true;
+}
+
+function moveAnswerLines(direction) {
+  const { lines, startLine, endLine } = getAnswerLineSelection();
+  const count = endLine - startLine + 1;
+
+  if ((direction < 0 && startLine === 0) || (direction > 0 && endLine === lines.length - 1)) {
+    return false;
+  }
+
+  const selected = lines.splice(startLine, count);
+  const destination = direction < 0 ? startLine - 1 : startLine + 1;
+  lines.splice(destination, 0, ...selected);
+  writeLineSelection(lines, destination, destination + count - 1);
+
+  return true;
+}
+
+function duplicateAnswerLines(direction) {
+  const { lines, startLine, endLine } = getAnswerLineSelection();
+  const selected = lines.slice(startLine, endLine + 1);
+  const insertionIndex = direction < 0 ? startLine : endLine + 1;
+
+  lines.splice(insertionIndex, 0, ...selected);
+  writeLineSelection(
+    lines,
+    insertionIndex,
+    insertionIndex + selected.length - 1,
+  );
+
+  return true;
+}
+
+function deleteAnswerLines() {
+  const { lines, startLine, endLine } = getAnswerLineSelection();
+  const removeCount = endLine - startLine + 1;
+
+  lines.splice(startLine, removeCount);
+
+  if (!lines.length) lines.push("");
+
+  const nextLine = Math.min(startLine, lines.length - 1);
+  writeLineSelection(lines, nextLine, nextLine);
 }
 
 function render() {
@@ -4135,15 +4589,59 @@ els.answerInput.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (handleCommentToggleShortcut(event)) return;
+  if (handleSelectLineShortcut(event)) return;
+
+  if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    deleteAnswerLines();
+    return;
+  }
+
+  if (event.altKey && !event.ctrlKey && !event.metaKey && event.key === "ArrowUp") {
+    event.preventDefault();
+
+    if (event.shiftKey) {
+      duplicateAnswerLines(-1);
+      return;
+    }
+
+    moveAnswerLines(-1);
+    return;
+  }
+
+  if (event.altKey && !event.ctrlKey && !event.metaKey && event.key === "ArrowDown") {
+    event.preventDefault();
+
+    if (event.shiftKey) {
+      duplicateAnswerLines(1);
+      return;
+    }
+
+    moveAnswerLines(1);
+    return;
+  }
+
+  if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "s") {
+    event.preventDefault();
+    saveAnswerDraft();
+    setFeedback("Guardado en el navegador. Puedes seguir escribiendo.", "good");
+    return;
+  }
+
   if (event.key === "Tab") {
-    if (handleHtmlShortcut(event)) return;
+    if (handleHtmlShortcut(event) || handleTrackSnippetShortcut(event)) return;
     handleAnswerTab(event);
     return;
   }
 
   if (event.key === "Enter") {
-    if (handleHtmlShortcut(event)) return;
+    if (handleHtmlShortcut(event) || handleTrackSnippetShortcut(event)) return;
     handleAnswerEnter(event);
+    return;
+  }
+
+  if (event.key === ">" && handleHtmlTagAutocomplete(event)) {
     return;
   }
 
