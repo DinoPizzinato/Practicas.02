@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aula 010101</title>
+    <link rel="stylesheet" href="./styles/index.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#workspace" aria-label="Aula 010101">
+        <span class="brand__mark" aria-hidden="true"></span>
+        <span>
+          <strong>Aula 010101</strong>
+          <small>HTML, CSS y JS desde cero</small>
+        </span>
+      </a>
+
+      <nav class="track-tabs" aria-label="Ruta de aprendizaje">
+        <button class="track-tab is-active" type="button" data-track="html">
+          HTML
+        </button>
+        <button class="track-tab" type="button" data-track="css">CSS</button>
+        <button class="track-tab" type="button" data-track="js">JS</button>
+      </nav>
+    </header>
+
+    <main id="workspace" class="workspace">
+      <section class="focus-panel" aria-labelledby="lesson-title">
+        <div class="focus-panel__media" aria-hidden="true"></div>
+
+        <div class="focus-panel__content">
+          <p class="eyebrow" id="track-label">Modulo HTML</p>
+          <h1 id="lesson-title">Estructura base de una pagina</h1>
+          <p id="lesson-summary" class="lesson-summary">
+            Vas a reconocer las partes minimas de un documento web y a escribir
+            una estructura inicial sin perderte en detalles.
+          </p>
+
+          <div class="goal-strip" aria-label="Objetivo actual">
+            <span>Objetivo</span>
+            <strong id="lesson-goal">Crear el esqueleto HTML correcto.</strong>
+          </div>
+
+          <div class="action-row">
+            <button id="hint-button" class="button button--primary" type="button">
+              Pista
+            </button>
+            <button id="rescue-button" class="button button--soft" type="button">
+              Me perdi
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side-panel" aria-label="Panel de foco">
+        <section class="timer-box">
+          <div>
+            <p class="eyebrow">Bloque corto</p>
+            <strong id="timer">08:00</strong>
+          </div>
+          <button id="timer-toggle" class="icon-button" type="button" aria-label="Iniciar pausa de foco">
+            <span aria-hidden="true">&gt;</span>
+          </button>
+        </section>
+
+        <section class="progress-box">
+          <p class="eyebrow">Avance</p>
+          <div class="meter" aria-hidden="true">
+            <span id="progress-bar"></span>
+          </div>
+          <strong id="progress-text">0 de 15 practicas</strong>
+        </section>
+
+        <section class="track-box" aria-labelledby="track-progress-title">
+          <p class="eyebrow" id="track-progress-title">Posicion actual</p>
+          <strong id="track-progress">HTML 1 de 27</strong>
+          <p id="track-summary">0 completadas en este modulo.</p>
+        </section>
+
+        <section class="reset-box">
+          <p class="eyebrow">Volver al centro</p>
+          <p id="rescue-text">
+            Mira solo el reto actual. Si aparece ruido mental, vuelve al
+            objetivo y escribe una linea.
+          </p>
+        </section>
+      </aside>
+
+      <section class="lesson-map" aria-labelledby="map-title">
+        <div class="section-heading">
+          <p class="eyebrow">Ruta guiada</p>
+          <h2 id="map-title">Elige una practica</h2>
+        </div>
+
+        <div class="map-toolbar">
+          <label class="search-field" for="lesson-search">
+            <span>Buscar practica</span>
+            <input
+              id="lesson-search"
+              type="search"
+              placeholder="Buscar por tema o palabra"
+              autocomplete="off"
+            />
+          </label>
+
+          <div class="map-filters" role="group" aria-label="Filtrar practicas">
+            <button class="filter-chip is-active" type="button" data-filter="all">
+              Todas
+            </button>
+            <button class="filter-chip" type="button" data-filter="pending">
+              Pendientes
+            </button>
+            <button class="filter-chip" type="button" data-filter="done">
+              Completadas
+            </button>
+          </div>
+        </div>
+
+        <p id="map-status" class="map-status">Mostrando todas las practicas.</p>
+        <div id="lesson-list" class="lesson-list"></div>
+      </section>
+
+      <section class="practice-panel" aria-labelledby="practice-title">
+        <div class="section-heading">
+          <p class="eyebrow">Practica inmediata</p>
+          <h2 id="practice-title">Reto</h2>
+        </div>
+
+        <div class="prompt-box">
+          <p id="challenge-text"></p>
+          <label for="answer-input">Tu respuesta</label>
+          <div id="practice-editor" class="editor-shell" data-language="html">
+            <div class="editor-shell__topbar" aria-hidden="true">
+              <div class="editor-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <strong id="editor-file">reto.html</strong>
+              <span id="editor-mode">HTML</span>
+            </div>
+
+            <div class="editor-shell__body">
+              <div id="answer-lines" class="editor-lines" aria-hidden="true">1</div>
+
+              <div class="editor-stage">
+                <textarea
+                  id="answer-input"
+                  rows="10"
+                  wrap="off"
+                  spellcheck="false"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  autocorrect="off"
+                  placeholder="Escribe aca. No hace falta que sea perfecto."
+                ></textarea>
+              </div>
+            </div>
+
+            <div class="editor-shell__status" aria-hidden="true">
+              <span id="editor-track-pill">HTML</span>
+              <span>Tab sangra</span>
+              <span>Ctrl+Enter comprueba</span>
+            </div>
+          </div>
+
+          <div class="practice-actions">
+            <button id="check-button" class="button button--primary" type="button">
+              Comprobar
+            </button>
+            <button id="prev-button" class="button button--soft" type="button">
+              Anterior
+            </button>
+            <button id="next-button" class="button button--soft" type="button">
+              Siguiente
+            </button>
+            <button id="clear-button" class="button button--soft" type="button">
+              Limpiar
+            </button>
+          </div>
+
+          <p id="feedback" class="feedback" role="status" aria-live="polite">
+            Cuando termines, comprobaremos la idea central.
+          </p>
+        </div>
+      </section>
+
+      <section class="coach-panel" aria-labelledby="coach-title">
+        <div class="section-heading">
+          <p class="eyebrow">Profesor particular</p>
+          <h2 id="coach-title">Idea clave</h2>
+        </div>
+
+        <p id="coach-explain" class="coach-text"></p>
+
+        <ol id="micro-steps" class="micro-steps"></ol>
+
+        <pre class="code-sample"><code id="example-code"></code></pre>
+      </section>
+
+      <section class="lab-panel" aria-labelledby="lab-title">
+        <div class="section-heading">
+          <p class="eyebrow">Laboratorio</p>
+          <h2 id="lab-title">Proba codigo aca</h2>
+        </div>
+
+        <div class="lab-grid">
+          <label class="editor-box" for="html-editor">
+            <span>HTML</span>
+            <textarea id="html-editor" rows="9" spellcheck="false"></textarea>
+          </label>
+          <label class="editor-box" for="css-editor">
+            <span>CSS</span>
+            <textarea id="css-editor" rows="9" spellcheck="false"></textarea>
+          </label>
+          <label class="editor-box" for="js-editor">
+            <span>JS</span>
+            <textarea id="js-editor" rows="9" spellcheck="false"></textarea>
+          </label>
+        </div>
+
+        <div class="lab-actions">
+          <button id="run-lab" class="button button--primary" type="button">
+            Ejecutar
+          </button>
+          <button id="load-example" class="button button--soft" type="button">
+            Cargar ejemplo
+          </button>
+        </div>
+
+        <iframe
+          id="preview"
+          title="Vista previa del laboratorio"
+          sandbox="allow-scripts"
+        ></iframe>
+      </section>
+
+      <section class="notes-panel" aria-labelledby="notes-title">
+        <div class="section-heading">
+          <p class="eyebrow">Tu libreta</p>
+          <h2 id="notes-title">Notas rapidas</h2>
+        </div>
+        <textarea
+          id="notes"
+          rows="10"
+          placeholder="Anota dudas, ideas, errores repetidos o cosas que quieras repasar."
+        ></textarea>
+      </section>
+    </main>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
