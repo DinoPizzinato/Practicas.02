@@ -4931,6 +4931,38 @@ function parseHtmlAbbreviation(value) {
   return result.index === value.trim().length ? result.nodes : null;
 }
 
+function normalizeHtmlAbbreviationInput(value) {
+  const trimmed = value.trim();
+
+  if (!trimmed) return trimmed;
+  if (!trimmed.includes("<")) return trimmed;
+  if (/^<\/?[a-z!/]/i.test(trimmed) || /^<!doctype/i.test(trimmed)) return trimmed;
+
+  const shorthandPattern = /^[\w.#:[\]{}="'\s+$*-<>]+$/;
+  if (!shorthandPattern.test(trimmed)) return trimmed;
+
+  let normalized = "";
+
+  for (let index = 0; index < trimmed.length; index += 1) {
+    const char = trimmed[index];
+    const previous = trimmed[index - 1] || "";
+    const next = trimmed[index + 1] || "";
+
+    if (
+      char === "<" &&
+      /[\w\]\}\)"'$*-]/.test(previous) &&
+      /[a-z.#\[]/i.test(next)
+    ) {
+      normalized += ">";
+      continue;
+    }
+
+    normalized += char;
+  }
+
+  return normalized;
+}
+
 function replaceCounterTokens(value, counter) {
   return value.replace(/\$+/g, (match) => String(counter).padStart(match.length, "0"));
 }
@@ -5117,9 +5149,12 @@ function handleHtmlAbbreviationShortcut(event) {
   const context = getCurrentAnswerLineContext();
 
   if (state.track !== "html" || context.selectionStart !== context.selectionEnd) return false;
-  if (!context.trimmedLine || context.trimmedLine.includes("<")) return false;
+  if (!context.trimmedLine) return false;
 
-  const nodes = parseHtmlAbbreviation(context.trimmedLine);
+  const abbreviation = normalizeHtmlAbbreviationInput(context.trimmedLine);
+  if (abbreviation.includes("<")) return false;
+
+  const nodes = parseHtmlAbbreviation(abbreviation);
   if (!nodes) return false;
 
   event.preventDefault();
