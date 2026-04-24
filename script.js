@@ -5730,6 +5730,10 @@ function hasWordToken(raw, token) {
 }
 
 function describeRequirementToken(token, track) {
+  if (token === "<!--" || token === "-->") {
+    return "Usar comentario HTML";
+  }
+
   if (token.startsWith("</")) {
     return `Cerrar ${token}>`.replace(">>", ">");
   }
@@ -5757,13 +5761,18 @@ function describeRequirementToken(token, track) {
   return `Incluir ${token}`;
 }
 
-function describeAnyGroup(group, track) {
-  const options = group
-    .map((token) => {
-      if (token.startsWith("<")) {
-        return token.replace(/[<>/]/g, "");
+function describeAnyGroup(groups, track) {
+  const options = groups
+    .map((group) => {
+      const sample =
+        group.find((token) => token.startsWith("<") && !token.startsWith("</")) || group[0];
+
+      if (!sample) return "";
+      if (sample.startsWith("<")) {
+        return sample.replace(/[<>/]/g, "");
       }
-      return token;
+
+      return sample;
     })
     .filter(Boolean);
 
@@ -5775,6 +5784,14 @@ function matchesHtmlRequirement(token, raw, normalized) {
 
   if (lowerToken.startsWith("<!doctype")) {
     return /<!doctype\s+html/i.test(raw);
+  }
+
+  if (lowerToken === "<!--") {
+    return /<!--/.test(raw);
+  }
+
+  if (lowerToken === "-->") {
+    return /-->/.test(raw);
   }
 
   if (lowerToken.startsWith("</")) {
@@ -5876,12 +5893,14 @@ function evaluateLessonAnswer(answerValue = els.answerInput.value) {
     });
   });
 
-  (lesson.requiredAny || []).forEach((group) => {
+  if ((lesson.requiredAny || []).length) {
     checks.push({
-      label: describeAnyGroup(group, state.track),
-      passed: group.every((token) => matchesRequirement(state.track, token, raw, normalized)),
+      label: describeAnyGroup(lesson.requiredAny, state.track),
+      passed: lesson.requiredAny.some((group) =>
+        group.every((token) => matchesRequirement(state.track, token, raw, normalized)),
+      ),
     });
-  });
+  }
 
   const passedCount = checks.filter((item) => item.passed).length;
 
