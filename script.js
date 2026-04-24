@@ -5788,14 +5788,19 @@ function matchesHtmlRequirement(token, raw, normalized) {
   }
 
   if (lowerToken.includes("=")) {
-    const [attributeName, attributeValue] = lowerToken.split(/=(.+)/);
+    const equalIndex = lowerToken.indexOf("=");
+    const attributeName = lowerToken.slice(0, equalIndex).trim();
+    const attributeValue = lowerToken.slice(equalIndex + 1).trim();
+
+    if (!attributeName) return false;
+
     if (!attributeValue) {
-      return new RegExp(`${escapeRegExp(attributeName)}\\s*=`, "i").test(raw);
+      return new RegExp(`\\b${escapeRegExp(attributeName)}\\b\\s*=`, "i").test(raw);
     }
 
     const cleanValue = attributeValue.replace(/^["']|["']$/g, "");
     return new RegExp(
-      `${escapeRegExp(attributeName)}\\s*=\\s*["']?${escapeRegExp(cleanValue)}["']?`,
+      `\\b${escapeRegExp(attributeName)}\\b\\s*=\\s*["']?${escapeRegExp(cleanValue)}["']?`,
       "i",
     ).test(raw);
   }
