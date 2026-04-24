@@ -2953,12 +2953,15 @@ const els = {
   answerInput: document.querySelector("#answer-input"),
   practiceEditor: document.querySelector("#practice-editor"),
   answerLines: document.querySelector("#answer-lines"),
+  answerHighlight: document.querySelector("#answer-highlight"),
   editorFile: document.querySelector("#editor-file"),
   editorMode: document.querySelector("#editor-mode"),
   editorTrackPill: document.querySelector("#editor-track-pill"),
   editorShortcutPrimary: document.querySelector("#editor-shortcut-primary"),
   editorShortcutSecondary: document.querySelector("#editor-shortcut-secondary"),
   editorShortcutTertiary: document.querySelector("#editor-shortcut-tertiary"),
+  checklist: document.querySelector("#checklist"),
+  checklistSummary: document.querySelector("#checklist-summary"),
   feedback: document.querySelector("#feedback"),
   hintButton: document.querySelector("#hint-button"),
   rescueButton: document.querySelector("#rescue-button"),
@@ -2980,12 +2983,16 @@ const els = {
   jsEditor: document.querySelector("#js-editor"),
   runLab: document.querySelector("#run-lab"),
   loadExample: document.querySelector("#load-example"),
+  clearConsole: document.querySelector("#clear-console"),
   preview: document.querySelector("#preview"),
+  consoleOutput: document.querySelector("#console-output"),
+  consoleSummary: document.querySelector("#console-summary"),
   timer: document.querySelector("#timer"),
   timerToggle: document.querySelector("#timer-toggle"),
 };
 
 const trackOrder = Object.keys(curriculum);
+const PREVIEW_MESSAGE_TYPE = "aula010101-preview-console";
 const uiState = {
   lessonSearch: "",
   lessonFilter: "all",
@@ -2994,6 +3001,8 @@ const uiState = {
 let state = loadState();
 let timerSeconds = 8 * 60;
 let timerId = null;
+let previewRunId = 0;
+let consoleEntries = [];
 
 function sanitizeState(value) {
   const fallback = { track: "html", lesson: 0, completed: {} };
@@ -3122,6 +3131,153 @@ function getCurrentAnswerLine() {
 
 function syncAnswerEditorScroll() {
   els.answerLines.scrollTop = els.answerInput.scrollTop;
+  els.answerHighlight.scrollTop = els.answerInput.scrollTop;
+  els.answerHighlight.scrollLeft = els.answerInput.scrollLeft;
+}
+
+function escapeHtml(value) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function applyHighlightRules(value, rules) {
+  const stash = [];
+  let result = value;
+
+  const hold = (markup) => {
+    const index = stash.push(markup) - 1;
+    return `\u0000${index}\u0000`;
+  };
+
+  rules.forEach(({ pattern, replacer }) => {
+    result = result.replace(pattern, (...args) => hold(replacer(...args)));
+  });
+
+  return result.replace(/\u0000(\d+)\u0000/g, (_match, index) => stash[Number(index)]);
+}
+
+function highlightHtml(value) {
+  const escaped = escapeHtml(value);
+
+  return applyHighlightRules(escaped, [
+    {
+      pattern:
+        /&lt;!--[\s\S]*?--&gt;|&lt;\/?[\w-]+(?:\s+[\w:-]+(?:=(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*\s*\/?&gt;/g,
+      replacer: (token) => {
+        if (token.startsWith("&lt;!--")) {
+          return `<span class="token-comment">${token}</span>`;
+        }
+
+        const openPunct = token.match(/^&lt;\/?/)?.[0] || "&lt;";
+        const closePunct = token.match(/\/?&gt;$/)?.[0] || "&gt;";
+        const inner = token.slice(openPunct.length, token.length - closePunct.length);
+        const tagName = inner.match(/^[\w-]+/)?.[0] || "";
+        const attributesPart = inner.slice(tagName.length);
+        const attributePattern = /\s+([\w:-]+)(?:=(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?/g;
+        let rendered = `<span class="token-punct">${openPunct}</span><span class="token-tag">${tagName}</span>`;
+        let cursor = 0;
+        let match = attributePattern.exec(attributesPart);
+
+        while (match) {
+          const attributeChunk = match[0];
+          const attributeName = match[1];
+          const equalIndex = attributeChunk.indexOf("=");
+
+          rendered += attributeChunk.slice(cursor, match.index);
+
+          if (equalIndex === -1) {
+            rendered += ` <span class="token-attr">${attributeName}</span>`;
+          } else {
+            const attributeValue = attributeChunk.slice(equalIndex + 1);
+            rendered += ` <span class="token-attr">${attributeName}</span><span class="token-punct">=</span><span class="token-string">${attributeValue}</span>`;
+          }
+
+          cursor = match.index + attributeChunk.length;
+          match = attributePattern.exec(attributesPart);
+        }
+
+        rendered += attributesPart.slice(cursor);
+        rendered += `<span class="token-punct">${closePunct}</span>`;
+        return rendered;
+      },
+    },
+  ]);
+}
+
+function highlightCss(value) {
+  const escaped = escapeHtml(value);
+
+  return applyHighlightRules(escaped, [
+    {
+      pattern: /\/\*[\s\S]*?\*\//g,
+      replacer: (token) => `<span class="token-comment">${token}</span>`,
+    },
+    {
+      pattern: /"[^"]*"|'[^']*'/g,
+      replacer: (token) => `<span class="token-string">${token}</span>`,
+    },
+    {
+      pattern: /(^|[\n}]\s*)(@[\w-]+)/g,
+      replacer: (_match, prefix, atRule) =>
+        `${prefix}<span class="token-keyword">${atRule}</span>`,
+    },
+    {
+      pattern: /(^|[\n}]\s*)([^@\n{}]+)(\s*\{)/g,
+      replacer: (_match, prefix, selector, suffix) =>
+        `${prefix}<span class="token-tag">${selector.trim()}</span>${suffix}`,
+    },
+    {
+      pattern: /([\w-]+)(\s*:)/g,
+      replacer: (_match, property, suffix) =>
+        `<span class="token-attr">${property}</span>${suffix}`,
+    },
+    {
+      pattern: /#(?:[\da-f]{3,8})\b|\b-?\d+(?:\.\d+)?(?:px|rem|em|%|vh|vw|s|ms|fr)?\b/gi,
+      replacer: (token) => `<span class="token-number">${token}</span>`,
+    },
+  ]);
+}
+
+function highlightJs(value) {
+  const escaped = escapeHtml(value);
+
+  return applyHighlightRules(escaped, [
+    {
+      pattern: /\/\*[\s\S]*?\*\/|\/\/.*$/gm,
+      replacer: (token) => `<span class="token-comment">${token}</span>`,
+    },
+    {
+      pattern: /`(?:\\[\s\S]|[^`])*`|"(?:\\.|[^"])*"|'(?:\\.|[^'])*'/g,
+      replacer: (token) => `<span class="token-string">${token}</span>`,
+    },
+    {
+      pattern:
+        /\b(?:const|let|var|function|return|if|else|for|while|switch|case|break|continue|try|catch|finally|throw|new|class|extends|async|await|import|from|export|default|true|false|null|undefined)\b/g,
+      replacer: (token) => `<span class="token-keyword">${token}</span>`,
+    },
+    {
+      pattern: /\b\d+(?:\.\d+)?\b/g,
+      replacer: (token) => `<span class="token-number">${token}</span>`,
+    },
+    {
+      pattern: /[{}()[\].,;:+\-*/=<>!]+/g,
+      replacer: (token) => `<span class="token-punct">${token}</span>`,
+    },
+  ]);
+}
+
+function highlightPracticeCode() {
+  const value = els.answerInput.value;
+
+  if (!value) {
+    return `<span class="editor-placeholder">${escapeHtml(getPracticeEditorMeta().placeholder)}</span>`;
+  }
+
+  if (state.track === "html") return highlightHtml(value);
+  if (state.track === "css") return highlightCss(value);
+  return highlightJs(value);
 }
 
 function renderPracticeEditor() {
@@ -3134,6 +3290,7 @@ function renderPracticeEditor() {
   els.editorMode.textContent = meta.mode;
   els.editorTrackPill.textContent = meta.status;
   els.answerInput.placeholder = meta.placeholder;
+  els.answerHighlight.innerHTML = `${highlightPracticeCode()}\n`;
   [els.editorShortcutPrimary.textContent, els.editorShortcutSecondary.textContent, els.editorShortcutTertiary.textContent] =
     meta.shortcuts;
   els.answerLines.innerHTML = Array.from(
@@ -4293,6 +4450,7 @@ function render() {
   els.feedback.className = "feedback";
   els.answerInput.value = localStorage.getItem(answerKey()) || "";
   renderPracticeEditor();
+  renderChecklist();
 
   renderSteps(lesson.steps);
   renderLessonList();
@@ -4413,6 +4571,9 @@ function saveLab() {
 function runPreview() {
   saveLab();
 
+  previewRunId += 1;
+  clearConsoleOutput(`Nueva ejecucion #${previewRunId}.`);
+
   els.preview.srcdoc = `<!doctype html>
 <html lang="es">
   <head>
@@ -4422,6 +4583,51 @@ function runPreview() {
   </head>
   <body>
     ${els.htmlEditor.value}
+    <script>
+      (() => {
+        const TYPE = ${JSON.stringify(PREVIEW_MESSAGE_TYPE)};
+        const RUN_ID = ${previewRunId};
+        const serialize = (value) => {
+          if (typeof value === "undefined") return "undefined";
+          if (value === null) return "null";
+          if (typeof value === "string") return value;
+          if (typeof value === "number" || typeof value === "boolean") return String(value);
+          if (value instanceof Error) return value.message;
+          try {
+            return JSON.stringify(value);
+          } catch {
+            return Object.prototype.toString.call(value);
+          }
+        };
+        const post = (level, values) => {
+          parent.postMessage(
+            {
+              type: TYPE,
+              runId: RUN_ID,
+              level,
+              message: values.map(serialize).join(" "),
+            },
+            "*",
+          );
+        };
+        ["log", "info", "warn", "error"].forEach((level) => {
+          const original = console[level];
+          console[level] = (...values) => {
+            post(level, values);
+            original.apply(console, values);
+          };
+        });
+        window.addEventListener("error", (event) => {
+          post("error", [event.message]);
+        });
+        window.addEventListener("unhandledrejection", (event) => {
+          post("error", ["Promise rejection:", event.reason]);
+        });
+        window.addEventListener("load", () => {
+          post("ready", ["Vista previa lista"]);
+        });
+      })();
+    <\/script>
     <script>${els.jsEditor.value}<\/script>
   </body>
 </html>`;
@@ -4431,25 +4637,205 @@ function normalize(value) {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-function hasAll(text, tokens) {
-  return tokens.every((token) => text.includes(token.toLowerCase()));
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function hasLooseToken(raw, token) {
+  const compactToken = token.trim();
+  if (!compactToken) return false;
+  return raw.toLowerCase().includes(compactToken.toLowerCase());
+}
+
+function hasWordToken(raw, token) {
+  const escaped = escapeRegExp(token);
+  return new RegExp(`(^|[^\\w-])${escaped}([^\\w-]|$)`, "i").test(raw);
+}
+
+function describeRequirementToken(token, track) {
+  if (token.startsWith("</")) {
+    return `Cerrar ${token}>`.replace(">>", ">");
+  }
+
+  if (token.startsWith("<")) {
+    return `Usar ${token}>`.replace(">>", ">");
+  }
+
+  if (token.includes("=")) {
+    return `Agregar ${token}`;
+  }
+
+  if (token.startsWith("@")) {
+    return `Usar ${token}`;
+  }
+
+  if (token.startsWith(".") || token.startsWith("#")) {
+    return track === "css" ? `Usar selector ${token}` : `Usar ${token}`;
+  }
+
+  if (token.endsWith("()")) {
+    return `Llamar ${token}`;
+  }
+
+  return `Incluir ${token}`;
+}
+
+function describeAnyGroup(group, track) {
+  const options = group
+    .map((token) => {
+      if (token.startsWith("<")) {
+        return token.replace(/[<>/]/g, "");
+      }
+      return token;
+    })
+    .filter(Boolean);
+
+  return `Usar una opcion: ${options.join(" o ")}`;
+}
+
+function matchesHtmlRequirement(token, raw, normalized) {
+  const lowerToken = token.toLowerCase();
+
+  if (lowerToken.startsWith("<!doctype")) {
+    return /<!doctype\s+html/i.test(raw);
+  }
+
+  if (lowerToken.startsWith("</")) {
+    const tag = lowerToken.match(/^<\/([\w-]+)/)?.[1];
+    return tag ? new RegExp(`<\\/${escapeRegExp(tag)}\\b`, "i").test(raw) : false;
+  }
+
+  if (lowerToken.startsWith("<")) {
+    const tag = lowerToken.match(/^<([\w-]+)/)?.[1];
+    return tag ? new RegExp(`<${escapeRegExp(tag)}\\b`, "i").test(raw) : false;
+  }
+
+  if (lowerToken.includes("=")) {
+    const [attributeName, attributeValue] = lowerToken.split(/=(.+)/);
+    if (!attributeValue) {
+      return new RegExp(`${escapeRegExp(attributeName)}\\s*=`, "i").test(raw);
+    }
+
+    const cleanValue = attributeValue.replace(/^["']|["']$/g, "");
+    return new RegExp(
+      `${escapeRegExp(attributeName)}\\s*=\\s*["']?${escapeRegExp(cleanValue)}["']?`,
+      "i",
+    ).test(raw);
+  }
+
+  if (["required", "controls", "autoplay", "loop", "muted", "checked", "disabled"].includes(lowerToken)) {
+    return new RegExp(`\\b${escapeRegExp(lowerToken)}(?=[\\s>])`, "i").test(raw);
+  }
+
+  return normalized.includes(lowerToken);
+}
+
+function matchesCssRequirement(token, raw, normalized) {
+  if (token.startsWith("@")) {
+    return new RegExp(`${escapeRegExp(token)}\\b`, "i").test(raw);
+  }
+
+  if (token.startsWith(".") || token.startsWith("#")) {
+    return new RegExp(escapeRegExp(token), "i").test(raw);
+  }
+
+  if (["*", ">", "+", "=>", ">=", "<=", "===", "!=="].includes(token)) {
+    return raw.includes(token);
+  }
+
+  if (/^[a-z-]+$/i.test(token)) {
+    return hasWordToken(raw, token);
+  }
+
+  return normalized.includes(token.toLowerCase());
+}
+
+function matchesJsRequirement(token, raw, normalized) {
+  if (["*", "+", "-", "/", ">=", "<=", "=>", "===", "!=="].includes(token)) {
+    return raw.includes(token);
+  }
+
+  if (token.endsWith("()")) {
+    const name = token.slice(0, -2);
+    return new RegExp(`\\b${escapeRegExp(name)}\\s*\\(`, "i").test(raw);
+  }
+
+  if (token.includes(" ")) {
+    return new RegExp(token.split(/\s+/).map(escapeRegExp).join("\\s+"), "i").test(raw);
+  }
+
+  if (token.includes(".")) {
+    return new RegExp(escapeRegExp(token), "i").test(raw);
+  }
+
+  if (/^[a-z_][\w-]*$/i.test(token)) {
+    return hasWordToken(raw, token);
+  }
+
+  return normalized.includes(token.toLowerCase());
+}
+
+function matchesRequirement(track, token, raw, normalized) {
+  if (track === "html") return matchesHtmlRequirement(token, raw, normalized);
+  if (track === "css") return matchesCssRequirement(token, raw, normalized);
+  return matchesJsRequirement(token, raw, normalized);
+}
+
+function evaluateLessonAnswer(answerValue = els.answerInput.value) {
+  const lesson = getLesson();
+  const raw = answerValue;
+  const normalized = normalize(answerValue);
+  const checks = [];
+
+  (lesson.required || []).forEach((token) => {
+    checks.push({
+      label: describeRequirementToken(token, state.track),
+      passed: matchesRequirement(state.track, token, raw, normalized),
+    });
+  });
+
+  (lesson.requiredAny || []).forEach((group) => {
+    checks.push({
+      label: describeAnyGroup(group, state.track),
+      passed: group.every((token) => matchesRequirement(state.track, token, raw, normalized)),
+    });
+  });
+
+  const passedCount = checks.filter((item) => item.passed).length;
+
+  return {
+    checks,
+    passedCount,
+    total: checks.length,
+    passed: checks.every((item) => item.passed),
+    firstMissing: checks.find((item) => !item.passed),
+  };
+}
+
+function renderChecklist() {
+  const evaluation = evaluateLessonAnswer();
+
+  els.checklist.innerHTML = "";
+  els.checklistSummary.textContent = `${evaluation.passedCount} de ${evaluation.total} piezas listas`;
+
+  evaluation.checks.forEach((check) => {
+    const item = document.createElement("li");
+    item.className = check.passed ? "is-good" : "";
+    item.textContent = check.label;
+    els.checklist.append(item);
+  });
 }
 
 function checkAnswer() {
-  const lesson = getLesson();
   const answer = normalize(els.answerInput.value);
+  const evaluation = evaluateLessonAnswer();
 
   if (answer.length < 8) {
     setFeedback("Escribi un poco mas. Un intento pequeno ya cuenta.", "warn");
     return;
   }
 
-  const requiredOk = hasAll(answer, lesson.required || []);
-  const anyOk = lesson.requiredAny
-    ? lesson.requiredAny.some((group) => hasAll(answer, group))
-    : true;
-
-  if (requiredOk && anyOk) {
+  if (evaluation.passed) {
     state.completed[lessonId()] = true;
     saveState();
     renderLessonList();
@@ -4460,12 +4846,8 @@ function checkAnswer() {
     return;
   }
 
-  const missing = (lesson.required || []).find(
-    (token) => !answer.includes(token.toLowerCase()),
-  );
-  const extra = lesson.requiredAny && !anyOk ? " Tambien falta elegir ul u ol." : "";
   setFeedback(
-    `Casi. Revisa si falta ${missing || "alguna pieza clave"}.${extra}`,
+    `Casi. Revisa esta pieza: ${evaluation.firstMissing?.label || "alguna pieza clave"}.`,
     "warn",
   );
 }
@@ -4473,6 +4855,54 @@ function checkAnswer() {
 function setFeedback(message, type) {
   els.feedback.textContent = message;
   els.feedback.className = `feedback is-${type}`;
+}
+
+function renderConsoleOutput() {
+  if (!consoleEntries.length) {
+    els.consoleSummary.textContent = "Esperando ejecucion...";
+    els.consoleOutput.innerHTML =
+      '<p class="console-empty">Ejecuta el laboratorio para ver logs, errores y avisos.</p>';
+    return;
+  }
+
+  const summaryLabel = consoleEntries.length === 1 ? "mensaje" : "mensajes";
+  els.consoleSummary.textContent = `${consoleEntries.length} ${summaryLabel} en esta ejecucion`;
+  els.consoleOutput.innerHTML = consoleEntries
+    .map(
+      (entry) => `
+        <div class="console-entry console-entry--${entry.level}">
+          <span class="console-entry__level">${entry.level}</span>
+          <span class="console-entry__message">${escapeHtml(entry.message)}</span>
+        </div>
+      `,
+    )
+    .join("");
+  els.consoleOutput.scrollTop = els.consoleOutput.scrollHeight;
+}
+
+function clearConsoleOutput(message) {
+  consoleEntries = [];
+
+  if (message) {
+    consoleEntries.push({ level: "ready", message });
+  }
+
+  renderConsoleOutput();
+}
+
+function pushConsoleEntry(level, message) {
+  consoleEntries.push({
+    level,
+    message: String(message || ""),
+  });
+  renderConsoleOutput();
+}
+
+function handlePreviewMessage(event) {
+  if (!event.data || event.data.type !== PREVIEW_MESSAGE_TYPE) return;
+  if (event.data.runId !== previewRunId) return;
+
+  pushConsoleEntry(event.data.level || "info", event.data.message || "");
 }
 
 function hasPrevious() {
@@ -4574,6 +5004,7 @@ els.lessonList.addEventListener("click", (event) => {
 els.answerInput.addEventListener("input", () => {
   saveAnswerDraft();
   renderPracticeEditor();
+  renderChecklist();
 });
 
 els.answerInput.addEventListener("scroll", syncAnswerEditorScroll);
@@ -4681,6 +5112,9 @@ els.loadExample.addEventListener("click", () => {
   els.jsEditor.value = lesson.lab.js;
   runPreview();
 });
+els.clearConsole.addEventListener("click", () => {
+  clearConsoleOutput();
+});
 
 [els.htmlEditor, els.cssEditor, els.jsEditor].forEach((editor) => {
   editor.addEventListener("input", saveLab);
@@ -4708,6 +5142,11 @@ els.notes.addEventListener("input", () => {
 
 els.timerToggle.addEventListener("click", toggleTimer);
 
+if (typeof window.addEventListener === "function") {
+  window.addEventListener("message", handlePreviewMessage);
+}
+
 updateTimer();
 setTimerButton(false);
+renderConsoleOutput();
 render();

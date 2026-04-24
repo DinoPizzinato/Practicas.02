@@ -145,6 +145,7 @@
               <div id="answer-lines" class="editor-lines" aria-hidden="true">1</div>
 
               <div class="editor-stage">
+                <pre id="answer-highlight" class="editor-highlight" aria-hidden="true"></pre>
                 <textarea
                   id="answer-input"
                   rows="10"
@@ -180,6 +181,14 @@
               Limpiar
             </button>
           </div>
+
+          <section class="checklist-box" aria-labelledby="checklist-title">
+            <div class="checklist-heading">
+              <p class="eyebrow" id="checklist-title">Revision automatica</p>
+              <strong id="checklist-summary">0 de 0 piezas listas</strong>
+            </div>
+            <ul id="checklist" class="checklist"></ul>
+          </section>
 
           <p id="feedback" class="feedback" role="status" aria-live="polite">
             Cuando termines, comprobaremos la idea central.
@@ -228,6 +237,9 @@
           <button id="load-example" class="button button--soft" type="button">
             Cargar ejemplo
           </button>
+          <button id="clear-console" class="button button--soft" type="button">
+            Limpiar consola
+          </button>
         </div>
 
         <iframe
@@ -235,6 +247,16 @@
           title="Vista previa del laboratorio"
           sandbox="allow-scripts"
         ></iframe>
+
+        <section class="console-panel" aria-labelledby="console-title">
+          <div class="console-heading">
+            <p class="eyebrow" id="console-title">Consola</p>
+            <strong id="console-summary">Esperando ejecucion...</strong>
+          </div>
+          <div id="console-output" class="console-output" role="log" aria-live="polite">
+            <p class="console-empty">Ejecuta el laboratorio para ver logs, errores y avisos.</p>
+          </div>
+        </section>
       </section>
 
       <section class="notes-panel" aria-labelledby="notes-title">
