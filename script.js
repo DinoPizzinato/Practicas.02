@@ -2962,6 +2962,8 @@ const els = {
   editorShortcutTertiary: document.querySelector("#editor-shortcut-tertiary"),
   checklist: document.querySelector("#checklist"),
   checklistSummary: document.querySelector("#checklist-summary"),
+  guideList: document.querySelector("#guide-list"),
+  guideSummary: document.querySelector("#guide-summary"),
   feedback: document.querySelector("#feedback"),
   hintButton: document.querySelector("#hint-button"),
   rescueButton: document.querySelector("#rescue-button"),
@@ -3312,6 +3314,8 @@ function writeAnswer(value, selectionStart, selectionEnd = selectionStart) {
   els.answerInput.selectionEnd = selectionEnd;
   saveAnswerDraft();
   renderPracticeEditor();
+  renderChecklist();
+  renderLiveGuide();
 }
 
 const HTML_TAGS = new Set([
@@ -3463,6 +3467,1043 @@ const TRACK_SNIPPETS = {
 }, ${CURSOR_START_MARK}1000${CURSOR_END_MARK});`,
   },
 };
+
+const GUIDE_LIMIT = 8;
+
+const HTML_GUIDE_LIBRARY = {
+  doctype: {
+    token: "<!doctype html>",
+    kind: "Declaracion inicial",
+    summary: "Le avisa al navegador que la pagina usa HTML moderno.",
+    usage: "Se escribe una sola vez, al principio del archivo.",
+    example: "<!doctype html>",
+  },
+  html: {
+    token: "<html>",
+    kind: "Raiz del documento",
+    summary: "Envuelve todo el contenido HTML de la pagina.",
+    usage: "Se usa una vez y suele llevar el idioma con lang.",
+    example: '<html lang="es"></html>',
+  },
+  head: {
+    token: "<head>",
+    kind: "Configuracion",
+    summary: "Guarda metadatos, enlaces y datos que no se ven en pantalla.",
+    usage: "Va antes del body y sirve para titulo, estilos, fuentes y meta tags.",
+    example: "<head></head>",
+  },
+  body: {
+    token: "<body>",
+    kind: "Contenido visible",
+    summary: "Contiene lo que el usuario realmente ve en la pagina.",
+    usage: "Todo el contenido visual y navegable va adentro de body.",
+    example: "<body></body>",
+  },
+  title: {
+    token: "<title>",
+    kind: "Titulo del documento",
+    summary: "Define el titulo que aparece en la pestana del navegador.",
+    usage: "Se usa una vez dentro de head para nombrar la pagina.",
+    example: "<title>Mi pagina</title>",
+  },
+  meta: {
+    token: "<meta>",
+    kind: "Metadato",
+    summary: "Agrega informacion tecnica del documento, como charset o viewport.",
+    usage: "Se usa dentro de head para configurar como se interpreta la pagina.",
+    example: '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+  },
+  link: {
+    token: "<link>",
+    kind: "Recurso externo",
+    summary: "Conecta archivos externos, normalmente una hoja de estilos.",
+    usage: "Sirve para cargar CSS, iconos o fuentes sin pegar el codigo en HTML.",
+    example: '<link rel="stylesheet" href="./styles/index.css">',
+  },
+  script: {
+    token: "<script>",
+    kind: "JavaScript",
+    summary: "Carga o contiene codigo JS para dar interaccion a la pagina.",
+    usage: "Usalo cuando necesites eventos, logica o manipular el DOM.",
+    example: '<script src="./script.js"></script>',
+  },
+  header: {
+    token: "<header>",
+    kind: "Cabecera",
+    summary: "Representa la parte inicial de una pagina o seccion.",
+    usage: "Suele contener logo, titulo, intro o navegacion principal.",
+    example: "<header></header>",
+  },
+  nav: {
+    token: "<nav>",
+    kind: "Navegacion",
+    summary: "Agrupa enlaces importantes para moverse por el sitio.",
+    usage: "Usalo para menus principales o bloques de navegacion relevantes.",
+    example: "<nav></nav>",
+  },
+  main: {
+    token: "<main>",
+    kind: "Contenido principal",
+    summary: "Marca el contenido central y unico de la pagina.",
+    usage: "Normalmente se usa una vez para lo mas importante del documento.",
+    example: "<main></main>",
+  },
+  section: {
+    token: "<section>",
+    kind: "Seccion tematica",
+    summary: "Agrupa contenido relacionado bajo una misma idea.",
+    usage: "Conviene cuando el bloque tiene sentido propio, a veces con titulo.",
+    example: "<section></section>",
+  },
+  article: {
+    token: "<article>",
+    kind: "Pieza independiente",
+    summary: "Representa contenido que podria vivir por separado.",
+    usage: "Es ideal para posts, cards, noticias o comentarios completos.",
+    example: "<article></article>",
+  },
+  footer: {
+    token: "<footer>",
+    kind: "Pie",
+    summary: "Cierra una pagina o seccion con datos finales.",
+    usage: "Suele usarse para creditos, enlaces extra o informacion legal.",
+    example: "<footer></footer>",
+  },
+  h1: {
+    token: "<h1>",
+    kind: "Titulo principal",
+    summary: "Marca el titulo mas importante de la pagina.",
+    usage: "Normalmente se usa una vez porque resume el tema central.",
+    example: "<h1>Titulo principal</h1>",
+  },
+  h2: {
+    token: "<h2>",
+    kind: "Subtitulo",
+    summary: "Introduce una seccion importante dentro del contenido.",
+    usage: "Sirve para organizar la jerarquia despues del h1.",
+    example: "<h2>Subtitulo</h2>",
+  },
+  h3: {
+    token: "<h3>",
+    kind: "Subnivel",
+    summary: "Continua la jerarquia dentro de un bloque ya encabezado.",
+    usage: "Usalo cuando una seccion necesita subapartados mas chicos.",
+    example: "<h3>Detalle</h3>",
+  },
+  p: {
+    token: "<p>",
+    kind: "Parrafo",
+    summary: "Contiene texto corrido o ideas completas en forma de parrafo.",
+    usage: "Es la etiqueta base para texto normal de lectura.",
+    example: "<p>Texto de apoyo.</p>",
+  },
+  a: {
+    token: "<a>",
+    kind: "Enlace",
+    summary: "Crea un link hacia otra pagina, seccion o recurso.",
+    usage: "Usalo para navegar o descargar algo con href.",
+    example: '<a href="/contacto">Contacto</a>',
+  },
+  img: {
+    token: "<img>",
+    kind: "Imagen",
+    summary: "Inserta una imagen en la pagina.",
+    usage: "Necesita src y conviene sumar alt para describirla.",
+    example: '<img src="./foto.jpg" alt="Descripcion de la imagen">',
+  },
+  ul: {
+    token: "<ul>",
+    kind: "Lista sin orden",
+    summary: "Agrupa elementos cuando el orden no importa.",
+    usage: "Sirve para menus, ventajas, pasos flexibles o colecciones simples.",
+    example: "<ul><li>Item</li></ul>",
+  },
+  ol: {
+    token: "<ol>",
+    kind: "Lista ordenada",
+    summary: "Agrupa elementos cuando el orden si importa.",
+    usage: "Es ideal para pasos, rankings o instrucciones secuenciales.",
+    example: "<ol><li>Paso 1</li></ol>",
+  },
+  li: {
+    token: "<li>",
+    kind: "Item de lista",
+    summary: "Representa cada elemento dentro de una lista.",
+    usage: "Va dentro de ul u ol para cada punto de la lista.",
+    example: "<li>Elemento</li>",
+  },
+  div: {
+    token: "<div>",
+    kind: "Contenedor generico",
+    summary: "Agrupa elementos sin agregar significado semantico.",
+    usage: "Usalo cuando necesitas ordenar el layout y no hay una etiqueta mejor.",
+    example: '<div class="card"></div>',
+  },
+  span: {
+    token: "<span>",
+    kind: "Contenedor en linea",
+    summary: "Envuelve una parte pequena de texto o contenido en linea.",
+    usage: "Sirve para aplicar estilo o marcar una porcion puntual.",
+    example: "<span>Destacado</span>",
+  },
+  button: {
+    token: "<button>",
+    kind: "Boton",
+    summary: "Dispara una accion dentro de la interfaz.",
+    usage: "Usalo para enviar, abrir, guardar o reaccionar a un click.",
+    example: '<button type="button">Guardar</button>',
+  },
+  form: {
+    token: "<form>",
+    kind: "Formulario",
+    summary: "Agrupa campos y acciones para enviar datos.",
+    usage: "Sirve para login, contacto, busqueda y cualquier ingreso de datos.",
+    example: "<form></form>",
+  },
+  label: {
+    token: "<label>",
+    kind: "Etiqueta de campo",
+    summary: "Nombra un input y mejora la accesibilidad del formulario.",
+    usage: "Conviene unirla con for al id del campo que describe.",
+    example: '<label for="nombre">Nombre</label>',
+  },
+  input: {
+    token: "<input>",
+    kind: "Campo de entrada",
+    summary: "Recibe datos cortos como texto, email, numero o password.",
+    usage: "Es la base de los formularios y cambia segun el atributo type.",
+    example: '<input type="text" name="nombre">',
+  },
+  textarea: {
+    token: "<textarea>",
+    kind: "Texto largo",
+    summary: "Permite escribir varias lineas de texto.",
+    usage: "Es util para mensajes, comentarios o notas mas extensas.",
+    example: "<textarea></textarea>",
+  },
+  select: {
+    token: "<select>",
+    kind: "Lista desplegable",
+    summary: "Permite elegir una opcion de una lista.",
+    usage: "Conviene cuando las opciones estan definidas de antemano.",
+    example: "<select></select>",
+  },
+  option: {
+    token: "<option>",
+    kind: "Opcion",
+    summary: "Representa cada alternativa dentro de un select.",
+    usage: "Se usa dentro de select para cada valor posible.",
+    example: '<option value="html">HTML</option>',
+  },
+  table: {
+    token: "<table>",
+    kind: "Tabla",
+    summary: "Organiza datos en filas y columnas.",
+    usage: "Sirve para informacion tabular, no para maquetar una pagina.",
+    example: "<table></table>",
+  },
+  thead: {
+    token: "<thead>",
+    kind: "Cabecera de tabla",
+    summary: "Agrupa las filas de encabezado de una tabla.",
+    usage: "Ayuda a separar titulos de columnas del resto de los datos.",
+    example: "<thead></thead>",
+  },
+  tbody: {
+    token: "<tbody>",
+    kind: "Cuerpo de tabla",
+    summary: "Agrupa las filas principales con datos.",
+    usage: "Sirve para distinguir los datos del encabezado y del pie.",
+    example: "<tbody></tbody>",
+  },
+  tr: {
+    token: "<tr>",
+    kind: "Fila",
+    summary: "Representa una fila completa dentro de una tabla.",
+    usage: "Cada tr suele contener celdas th o td.",
+    example: "<tr></tr>",
+  },
+  th: {
+    token: "<th>",
+    kind: "Celda de encabezado",
+    summary: "Marca una celda que funciona como titulo de fila o columna.",
+    usage: "Conviene para que la tabla tenga contexto y mejor accesibilidad.",
+    example: "<th>Nombre</th>",
+  },
+  td: {
+    token: "<td>",
+    kind: "Celda de dato",
+    summary: "Guarda un dato normal dentro de una tabla.",
+    usage: "Va dentro de tr para cada valor de la fila.",
+    example: "<td>Argentina</td>",
+  },
+  figure: {
+    token: "<figure>",
+    kind: "Bloque ilustrado",
+    summary: "Agrupa una imagen, grafico o recurso visual como una unidad.",
+    usage: "Es util cuando ese contenido puede llevar leyenda propia.",
+    example: "<figure></figure>",
+  },
+  figcaption: {
+    token: "<figcaption>",
+    kind: "Leyenda",
+    summary: "Agrega una descripcion o titulo a una figure.",
+    usage: "Sirve para explicar una imagen o grafico sin mezclarlo con el texto general.",
+    example: "<figcaption>Descripcion de la figura</figcaption>",
+  },
+  strong: {
+    token: "<strong>",
+    kind: "Importancia",
+    summary: "Resalta una parte del texto como importante.",
+    usage: "Conviene cuando el contenido tiene peso semantico, no solo visual.",
+    example: "<strong>Importante</strong>",
+  },
+  em: {
+    token: "<em>",
+    kind: "Enfasis",
+    summary: "Marca enfasis dentro de una frase.",
+    usage: "Sirve para remarcar una idea con sentido, no solo con estilo.",
+    example: "<em>Nota clave</em>",
+  },
+};
+
+const CSS_GUIDE_LIBRARY = {
+  ".class": {
+    token: ".clase",
+    kind: "Selector de clase",
+    summary: "Apunta a cualquier elemento que tenga esa class.",
+    usage: "Es la forma mas reutilizable de estilizar componentes.",
+    example: ".card {\n  padding: 16px;\n}",
+  },
+  "#id": {
+    token: "#id",
+    kind: "Selector de id",
+    summary: "Apunta a un elemento concreto con un id unico.",
+    usage: "Conviene para piezas muy especificas, no para estilos repetidos.",
+    example: "#hero {\n  min-height: 60vh;\n}",
+  },
+  "selector-tag": {
+    token: "selector",
+    kind: "Selector de etiqueta",
+    summary: "Aplica estilos a todas las etiquetas de ese tipo.",
+    usage: "Sirve para dar una base comun a p, h1, section u otros elementos.",
+    example: "p {\n  line-height: 1.6;\n}",
+  },
+  ":hover": {
+    token: ":hover",
+    kind: "Pseudo-clase",
+    summary: "Activa estilos cuando el puntero pasa por encima.",
+    usage: "Es util para feedback visual en botones, links o cards.",
+    example: "a:hover {\n  color: tomato;\n}",
+  },
+  ":focus": {
+    token: ":focus",
+    kind: "Pseudo-clase",
+    summary: "Activa estilos cuando un elemento recibe foco.",
+    usage: "Es clave para accesibilidad y navegacion con teclado.",
+    example: "input:focus {\n  outline: 2px solid #0f766e;\n}",
+  },
+  "@media": {
+    token: "@media",
+    kind: "Regla responsive",
+    summary: "Cambia estilos segun el tamano o contexto de la pantalla.",
+    usage: "Se usa para adaptar el layout entre movil, tablet y desktop.",
+    example: "@media (max-width: 700px) {\n  .grid {\n    grid-template-columns: 1fr;\n  }\n}",
+  },
+  "@keyframes": {
+    token: "@keyframes",
+    kind: "Animacion",
+    summary: "Define las etapas de una animacion CSS.",
+    usage: "Sirve cuando quieres controlar como cambia un elemento en el tiempo.",
+    example: "@keyframes aparecer {\n  from { opacity: 0; }\n  to { opacity: 1; }\n}",
+  },
+  display: {
+    token: "display",
+    kind: "Layout",
+    summary: "Define como se comporta una caja en el flujo del documento.",
+    usage: "Se usa para pasar entre block, inline, flex, grid y mas.",
+    example: "display: flex;",
+  },
+  "flex-direction": {
+    token: "flex-direction",
+    kind: "Flexbox",
+    summary: "Ordena los items flex en fila o columna.",
+    usage: "Va junto a display: flex para decidir el eje principal.",
+    example: "flex-direction: column;",
+  },
+  "justify-content": {
+    token: "justify-content",
+    kind: "Flexbox",
+    summary: "Reparte los elementos a lo largo del eje principal.",
+    usage: "Sirve para centrar, separar o alinear items en un contenedor flex.",
+    example: "justify-content: center;",
+  },
+  "align-items": {
+    token: "align-items",
+    kind: "Flexbox",
+    summary: "Alinea los elementos sobre el eje cruzado.",
+    usage: "Se usa mucho para centrar verticalmente dentro de flex o grid.",
+    example: "align-items: center;",
+  },
+  gap: {
+    token: "gap",
+    kind: "Espaciado",
+    summary: "Agrega separacion entre items de flex o grid.",
+    usage: "Es mejor que usar margenes sueltos cuando el espacio pertenece al contenedor.",
+    example: "gap: 12px;",
+  },
+  margin: {
+    token: "margin",
+    kind: "Espacio exterior",
+    summary: "Crea espacio por fuera de la caja.",
+    usage: "Sirve para separar un elemento de los que lo rodean.",
+    example: "margin: 24px;",
+  },
+  padding: {
+    token: "padding",
+    kind: "Espacio interior",
+    summary: "Crea espacio entre el borde y el contenido interno.",
+    usage: "Se usa para que una caja respire por dentro.",
+    example: "padding: 16px;",
+  },
+  width: {
+    token: "width",
+    kind: "Tamano",
+    summary: "Define el ancho del elemento.",
+    usage: "Conviene cuando quieres controlar cuanto ocupa horizontalmente.",
+    example: "width: 320px;",
+  },
+  height: {
+    token: "height",
+    kind: "Tamano",
+    summary: "Define el alto del elemento.",
+    usage: "Usalo con cuidado para cajas o medios con altura conocida.",
+    example: "height: 180px;",
+  },
+  "max-width": {
+    token: "max-width",
+    kind: "Limite de ancho",
+    summary: "Pone un ancho maximo sin romper la adaptacion responsive.",
+    usage: "Es ideal para textos largos, contenedores y tarjetas.",
+    example: "max-width: 720px;",
+  },
+  "min-height": {
+    token: "min-height",
+    kind: "Minimo de alto",
+    summary: "Asegura una altura minima pero deja crecer el contenido.",
+    usage: "Sirve para heroes, cards o secciones que necesitan presencia base.",
+    example: "min-height: 60vh;",
+  },
+  background: {
+    token: "background",
+    kind: "Fondo",
+    summary: "Define color, imagen o gradiente de fondo en una sola propiedad.",
+    usage: "Conviene cuando el fondo tiene varias partes o un estilo compuesto.",
+    example: "background: linear-gradient(#fff6e8, #dff2e8);",
+  },
+  "background-color": {
+    token: "background-color",
+    kind: "Color de fondo",
+    summary: "Pinta el fondo del elemento con un color solido.",
+    usage: "Es la forma mas directa de cambiar el fondo.",
+    example: "background-color: #ffffff;",
+  },
+  color: {
+    token: "color",
+    kind: "Color de texto",
+    summary: "Cambia el color del texto y de algunos elementos en linea.",
+    usage: "Se usa para legibilidad, contraste y jerarquia visual.",
+    example: "color: #182126;",
+  },
+  border: {
+    token: "border",
+    kind: "Borde",
+    summary: "Dibuja el borde de la caja con grosor, estilo y color.",
+    usage: "Sirve para separar, remarcar o estructurar visualmente.",
+    example: "border: 1px solid #d6d9dc;",
+  },
+  "border-radius": {
+    token: "border-radius",
+    kind: "Esquinas",
+    summary: "Redondea las esquinas de la caja.",
+    usage: "Se usa para dar un look mas suave a botones, cards e inputs.",
+    example: "border-radius: 12px;",
+  },
+  "box-shadow": {
+    token: "box-shadow",
+    kind: "Sombra",
+    summary: "Agrega sombra alrededor del elemento.",
+    usage: "Ayuda a separar capas y dar profundidad visual.",
+    example: "box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);",
+  },
+  "font-size": {
+    token: "font-size",
+    kind: "Tipografia",
+    summary: "Define el tamano del texto.",
+    usage: "Sirve para jerarquia visual y legibilidad.",
+    example: "font-size: 1rem;",
+  },
+  "font-weight": {
+    token: "font-weight",
+    kind: "Tipografia",
+    summary: "Controla el grosor de la fuente.",
+    usage: "Conviene para diferenciar titulos, subtitulos y texto base.",
+    example: "font-weight: 700;",
+  },
+  "text-align": {
+    token: "text-align",
+    kind: "Alineacion",
+    summary: "Alinea el contenido de texto dentro de la caja.",
+    usage: "Se usa para centrar o acomodar bloques de texto.",
+    example: "text-align: center;",
+  },
+  "line-height": {
+    token: "line-height",
+    kind: "Espacio entre lineas",
+    summary: "Controla la separacion vertical entre lineas de texto.",
+    usage: "Es clave para que parrafos y titulos se lean mejor.",
+    example: "line-height: 1.6;",
+  },
+  position: {
+    token: "position",
+    kind: "Posicionamiento",
+    summary: "Cambia como se ubica el elemento respecto del flujo o de su contenedor.",
+    usage: "Sirve para usar top, left y superponer capas cuando hace falta.",
+    example: "position: relative;",
+  },
+  top: {
+    token: "top",
+    kind: "Desplazamiento",
+    summary: "Mueve el elemento desde el borde superior segun su posicionamiento.",
+    usage: "Funciona con position relative, absolute, fixed o sticky.",
+    example: "top: 0;",
+  },
+  right: {
+    token: "right",
+    kind: "Desplazamiento",
+    summary: "Mueve el elemento desde el borde derecho segun su posicionamiento.",
+    usage: "Se usa junto con position para ubicar un elemento con precision.",
+    example: "right: 16px;",
+  },
+  bottom: {
+    token: "bottom",
+    kind: "Desplazamiento",
+    summary: "Mueve el elemento desde el borde inferior segun su posicionamiento.",
+    usage: "Sirve para anclar piezas al fondo de un contenedor.",
+    example: "bottom: 0;",
+  },
+  left: {
+    token: "left",
+    kind: "Desplazamiento",
+    summary: "Mueve el elemento desde el borde izquierdo segun su posicionamiento.",
+    usage: "Se usa junto con position para acomodar capas o iconos.",
+    example: "left: 16px;",
+  },
+  "grid-template-columns": {
+    token: "grid-template-columns",
+    kind: "Grid",
+    summary: "Define cuantas columnas tiene una grilla y como se reparten.",
+    usage: "Es la base para armar layouts con CSS Grid.",
+    example: "grid-template-columns: repeat(3, 1fr);",
+  },
+  "place-items": {
+    token: "place-items",
+    kind: "Grid",
+    summary: "Centra o alinea items en grid con una sola propiedad.",
+    usage: "Es util para alinear facil en ambos ejes.",
+    example: "place-items: center;",
+  },
+  transform: {
+    token: "transform",
+    kind: "Transformacion",
+    summary: "Mueve, rota, escala o deforma el elemento sin cambiar el layout.",
+    usage: "Se usa mucho en animaciones, hover y microinteracciones.",
+    example: "transform: translateY(-4px);",
+  },
+  transition: {
+    token: "transition",
+    kind: "Transicion",
+    summary: "Suaviza el cambio entre un estado y otro.",
+    usage: "Sirve para hover, focus o cambios de clase menos bruscos.",
+    example: "transition: transform 180ms ease;",
+  },
+  animation: {
+    token: "animation",
+    kind: "Animacion",
+    summary: "Ejecuta una animacion definida con @keyframes.",
+    usage: "Conviene para dar entrada, enfasis o movimiento controlado.",
+    example: "animation: aparecer 400ms ease;",
+  },
+  opacity: {
+    token: "opacity",
+    kind: "Transparencia",
+    summary: "Controla que tan visible es un elemento.",
+    usage: "Sirve para fades, overlays y estados desactivados.",
+    example: "opacity: 0.6;",
+  },
+  overflow: {
+    token: "overflow",
+    kind: "Desborde",
+    summary: "Decide que pasa cuando el contenido se sale de la caja.",
+    usage: "Es util para scroll, recortes y componentes con contenido largo.",
+    example: "overflow: auto;",
+  },
+  "object-fit": {
+    token: "object-fit",
+    kind: "Medios",
+    summary: "Define como una imagen o video encaja dentro de su caja.",
+    usage: "Sirve para recortar o contener medios sin deformarlos.",
+    example: "object-fit: cover;",
+  },
+  cursor: {
+    token: "cursor",
+    kind: "Interaccion",
+    summary: "Cambia el icono del puntero segun la accion esperada.",
+    usage: "Se usa para reforzar que algo es clickable o arrastrable.",
+    example: "cursor: pointer;",
+  },
+};
+
+const JS_GUIDE_LIBRARY = [
+  {
+    id: "const",
+    token: "const",
+    kind: "Variable fija",
+    summary: "Declara un nombre que no se reasigna despues.",
+    usage: "Usalo por defecto cuando esa referencia debe seguir apuntando al mismo valor.",
+    example: 'const boton = document.querySelector("button");',
+    pattern: /\bconst\b/,
+  },
+  {
+    id: "let",
+    token: "let",
+    kind: "Variable mutable",
+    summary: "Declara un nombre cuyo valor puede cambiar.",
+    usage: "Conviene cuando realmente necesitas reasignar ese dato.",
+    example: "let contador = 0;",
+    pattern: /\blet\b/,
+  },
+  {
+    id: "function",
+    token: "function",
+    kind: "Funcion",
+    summary: "Declara un bloque reutilizable de codigo.",
+    usage: "Sirve para agrupar pasos y ejecutarlos cuando haga falta.",
+    example: "function saludar() {\n  console.log('Hola');\n}",
+    pattern: /\bfunction\b/,
+  },
+  {
+    id: "arrow",
+    token: "=>",
+    kind: "Arrow function",
+    summary: "Crea una funcion con sintaxis corta.",
+    usage: "Se usa mucho en callbacks y funciones pequenas.",
+    example: "const saludar = () => {\n  console.log('Hola');\n};",
+    pattern: /=>/,
+  },
+  {
+    id: "if",
+    token: "if",
+    kind: "Condicional",
+    summary: "Ejecuta codigo solo si una condicion se cumple.",
+    usage: "Sirve para tomar decisiones dentro de la logica.",
+    example: "if (activo) {\n  console.log('Ok');\n}",
+    pattern: /\bif\b/,
+  },
+  {
+    id: "else",
+    token: "else",
+    kind: "Alternativa",
+    summary: "Marca que hacer cuando la condicion anterior no se cumple.",
+    usage: "Complementa a if para cubrir el otro camino posible.",
+    example: "if (ok) {\n  return;\n} else {\n  console.log('Falta');\n}",
+    pattern: /\belse\b/,
+  },
+  {
+    id: "return",
+    token: "return",
+    kind: "Salida de funcion",
+    summary: "Devuelve un valor y corta la ejecucion de la funcion actual.",
+    usage: "Se usa para entregar resultados o terminar antes una funcion.",
+    example: "return total;",
+    pattern: /\breturn\b/,
+  },
+  {
+    id: "for",
+    token: "for",
+    kind: "Bucle",
+    summary: "Repite un bloque de codigo mientras una condicion lo permita.",
+    usage: "Conviene cuando necesitas recorrer por indice.",
+    example: "for (let index = 0; index < items.length; index += 1) {\n  console.log(items[index]);\n}",
+    pattern: /\bfor\b/,
+  },
+  {
+    id: "forEach",
+    token: ".forEach()",
+    kind: "Iteracion",
+    summary: "Recorre un array ejecutando una funcion por cada elemento.",
+    usage: "Es comodo cuando quieres leer o renderizar items uno por uno.",
+    example: "items.forEach((item) => {\n  console.log(item);\n});",
+    pattern: /\.forEach\s*\(/,
+  },
+  {
+    id: "map",
+    token: ".map()",
+    kind: "Transformacion",
+    summary: "Crea un nuevo array transformando cada elemento.",
+    usage: "Sirve cuando de un array quieres producir otro con la misma cantidad de items.",
+    example: "const nombres = items.map((item) => item.nombre);",
+    pattern: /\.map\s*\(/,
+  },
+  {
+    id: "filter",
+    token: ".filter()",
+    kind: "Filtrado",
+    summary: "Crea un nuevo array solo con los elementos que cumplen una condicion.",
+    usage: "Es util para buscar coincidencias o limpiar datos.",
+    example: "const activos = items.filter((item) => item.activo);",
+    pattern: /\.filter\s*\(/,
+  },
+  {
+    id: "push",
+    token: ".push()",
+    kind: "Array",
+    summary: "Agrega un elemento al final de un array.",
+    usage: "Se usa para guardar datos nuevos en una lista existente.",
+    example: 'tareas.push("Practicar HTML");',
+    pattern: /\.push\s*\(/,
+  },
+  {
+    id: "querySelectorAll",
+    token: "querySelectorAll()",
+    kind: "DOM",
+    summary: "Busca varios elementos en el documento usando un selector CSS.",
+    usage: "Conviene cuando quieres trabajar con una lista de nodos.",
+    example: 'document.querySelectorAll(".card");',
+    pattern: /\bquerySelectorAll\s*\(/,
+  },
+  {
+    id: "querySelector",
+    token: "querySelector()",
+    kind: "DOM",
+    summary: "Busca el primer elemento que coincide con un selector CSS.",
+    usage: "Es una de las formas mas comunes de traer un nodo del DOM.",
+    example: 'document.querySelector("#app");',
+    pattern: /\bquerySelector\s*\(/,
+  },
+  {
+    id: "getElementById",
+    token: "getElementById()",
+    kind: "DOM",
+    summary: "Busca un elemento por su id.",
+    usage: "Es util cuando ya sabes exactamente que nodo necesitas.",
+    example: 'document.getElementById("app");',
+    pattern: /\bgetElementById\s*\(/,
+  },
+  {
+    id: "addEventListener",
+    token: "addEventListener()",
+    kind: "Eventos",
+    summary: "Escucha una accion del usuario o del navegador.",
+    usage: "Se usa para responder a click, input, submit, keydown y otros eventos.",
+    example: 'boton.addEventListener("click", () => {\n  console.log("click");\n});',
+    pattern: /\baddEventListener\s*\(/,
+  },
+  {
+    id: "createElement",
+    token: "createElement()",
+    kind: "DOM",
+    summary: "Crea un elemento nuevo desde JavaScript.",
+    usage: "Sirve cuando el HTML se arma en tiempo real con datos.",
+    example: 'const item = document.createElement("li");',
+    pattern: /\bcreateElement\s*\(/,
+  },
+  {
+    id: "append",
+    token: ".append()",
+    kind: "DOM",
+    summary: "Inserta nodos o texto al final de un elemento.",
+    usage: "Se usa para agregar elementos creados o renderizados al DOM.",
+    example: "lista.append(item);",
+    pattern: /\.append(?:Child)?\s*\(/,
+  },
+  {
+    id: "classList",
+    token: ".classList",
+    kind: "Clases CSS",
+    summary: "Permite agregar, quitar o alternar clases desde JS.",
+    usage: "Sirve para mostrar estados visuales como activo, abierto o error.",
+    example: 'card.classList.toggle("is-active");',
+    pattern: /\.classList\b/,
+  },
+  {
+    id: "textContent",
+    token: ".textContent",
+    kind: "Texto",
+    summary: "Lee o cambia el texto plano de un elemento.",
+    usage: "Conviene cuando quieres insertar texto sin interpretar HTML.",
+    example: 'titulo.textContent = "Nuevo titulo";',
+    pattern: /\.textContent\b/,
+  },
+  {
+    id: "innerHTML",
+    token: ".innerHTML",
+    kind: "HTML dinamico",
+    summary: "Lee o reemplaza el HTML interno de un elemento.",
+    usage: "Es rapido para renderizar marcado, aunque conviene usarlo con cuidado.",
+    example: 'lista.innerHTML = "<li>Item</li>";',
+    pattern: /\.innerHTML\b/,
+  },
+  {
+    id: "value",
+    token: ".value",
+    kind: "Valor de campo",
+    summary: "Lee o cambia el valor de inputs, selects y textareas.",
+    usage: "Es la propiedad base para obtener lo que escribe el usuario.",
+    example: "console.log(input.value);",
+    pattern: /\.value\b/,
+  },
+  {
+    id: "preventDefault",
+    token: "preventDefault()",
+    kind: "Control de evento",
+    summary: "Evita la accion por defecto del navegador.",
+    usage: "Se usa mucho en formularios, links o atajos de teclado personalizados.",
+    example: "event.preventDefault();",
+    pattern: /\bpreventDefault\s*\(/,
+  },
+  {
+    id: "setTimeout",
+    token: "setTimeout()",
+    kind: "Tiempo",
+    summary: "Ejecuta una funcion una sola vez despues de esperar un tiempo.",
+    usage: "Sirve para retrasos, mensajes temporales o pasos diferidos.",
+    example: "setTimeout(() => {\n  console.log('listo');\n}, 1000);",
+    pattern: /\bsetTimeout\s*\(/,
+  },
+  {
+    id: "setInterval",
+    token: "setInterval()",
+    kind: "Tiempo",
+    summary: "Ejecuta una funcion repetidamente cada cierto tiempo.",
+    usage: "Conviene para relojes, contadores o chequeos periodicos.",
+    example: "setInterval(() => {\n  console.log('tic');\n}, 1000);",
+    pattern: /\bsetInterval\s*\(/,
+  },
+  {
+    id: "console-log",
+    token: "console.log()",
+    kind: "Depuracion",
+    summary: "Muestra informacion en la consola para revisar que esta pasando.",
+    usage: "Es util para entender valores, eventos y flujo durante la practica.",
+    example: "console.log(datos);",
+    pattern: /\bconsole\.log\s*\(/,
+  },
+  {
+    id: "try",
+    token: "try",
+    kind: "Manejo de errores",
+    summary: "Prueba un bloque de codigo que podria fallar.",
+    usage: "Sirve cuando quieres interceptar errores sin romper toda la ejecucion.",
+    example: "try {\n  ejecutar();\n} catch (error) {\n  console.error(error);\n}",
+    pattern: /\btry\b/,
+  },
+  {
+    id: "catch",
+    token: "catch",
+    kind: "Manejo de errores",
+    summary: "Recibe el error lanzado dentro de un bloque try.",
+    usage: "Se usa para reaccionar, avisar o registrar un error.",
+    example: "catch (error) {\n  console.error(error);\n}",
+    pattern: /\bcatch\b/,
+  },
+  {
+    id: "async",
+    token: "async",
+    kind: "Asincronia",
+    summary: "Marca una funcion que trabaja con promesas y espera resultados.",
+    usage: "Conviene cuando necesitas await dentro de una funcion.",
+    example: "async function cargarDatos() {\n  return [];\n}",
+    pattern: /\basync\b/,
+  },
+  {
+    id: "await",
+    token: "await",
+    kind: "Asincronia",
+    summary: "Espera a que una promesa se resuelva antes de seguir.",
+    usage: "Se usa dentro de funciones async para leer codigo asincrono mas claro.",
+    example: "const datos = await fetch(url);",
+    pattern: /\bawait\b/,
+  },
+];
+
+function storeGuideEntry(detected, id, entry, index) {
+  const current = detected.get(id);
+
+  if (!current || index < current.index) {
+    detected.set(id, { ...entry, index });
+  }
+}
+
+function buildGenericHtmlGuideEntry(tag) {
+  return {
+    token: `<${tag}>`,
+    kind: "Etiqueta HTML",
+    summary: "Representa una pieza del contenido o de la estructura del documento.",
+    usage: "Usala cuando el nombre de la etiqueta describa bien el rol real de ese bloque.",
+    example: HTML_VOID_TAGS.has(tag) ? `<${tag}>` : `<${tag}></${tag}>`,
+  };
+}
+
+function buildGenericCssGuideEntry(property) {
+  return {
+    token: property,
+    kind: "Propiedad CSS",
+    summary: "Ajusta una parte puntual del aspecto visual de un selector.",
+    usage: "Se usa dentro de una regla CSS para cambiar ese detalle del estilo.",
+    example: `${property}: valor;`,
+  };
+}
+
+function getHtmlGuideEntries(value) {
+  const detected = new Map();
+  const doctypeMatch = /<!doctype html>/i.exec(value);
+
+  if (doctypeMatch) {
+    storeGuideEntry(detected, "doctype", HTML_GUIDE_LIBRARY.doctype, doctypeMatch.index || 0);
+  }
+
+  const tagPattern = /<\s*([a-z][\w-]*)\b/gi;
+  let match = tagPattern.exec(value);
+
+  while (match) {
+    const tag = match[1].toLowerCase();
+    const entry = HTML_GUIDE_LIBRARY[tag] || buildGenericHtmlGuideEntry(tag);
+    storeGuideEntry(detected, tag, entry, match.index);
+    match = tagPattern.exec(value);
+  }
+
+  return Array.from(detected.values())
+    .sort((first, second) => first.index - second.index)
+    .slice(0, GUIDE_LIMIT);
+}
+
+function getCssGuideEntries(value) {
+  const detected = new Map();
+  const specialRules = [
+    { id: ".class", pattern: /(^|}|,)\s*\.[\w-]+\s*\{/im },
+    { id: "#id", pattern: /(^|}|,)\s*#[\w-]+\s*\{/im },
+    { id: "selector-tag", pattern: /(^|}|,)\s*[a-z][\w-]*\s*\{/im },
+    { id: ":hover", pattern: /:hover\b/i },
+    { id: ":focus", pattern: /:focus\b/i },
+    { id: "@media", pattern: /@media\b/i },
+    { id: "@keyframes", pattern: /@keyframes\b/i },
+  ];
+
+  specialRules.forEach(({ id, pattern }) => {
+    const match = pattern.exec(value);
+
+    if (match) {
+      storeGuideEntry(detected, id, CSS_GUIDE_LIBRARY[id], match.index || 0);
+    }
+  });
+
+  const propertyPattern = /(^|[{;]\s*)([a-z-]+)\s*:/gim;
+  let match = propertyPattern.exec(value);
+
+  while (match) {
+    const property = match[2].toLowerCase();
+    const entry = CSS_GUIDE_LIBRARY[property] || buildGenericCssGuideEntry(property);
+    const index = match.index + match[1].length;
+    storeGuideEntry(detected, property, entry, index);
+    match = propertyPattern.exec(value);
+  }
+
+  return Array.from(detected.values())
+    .sort((first, second) => first.index - second.index)
+    .slice(0, GUIDE_LIMIT);
+}
+
+function getJsGuideEntries(value) {
+  const detected = new Map();
+
+  JS_GUIDE_LIBRARY.forEach((entry) => {
+    const match = entry.pattern.exec(value);
+
+    if (!match) return;
+
+    storeGuideEntry(detected, entry.id, entry, match.index || 0);
+  });
+
+  return Array.from(detected.values())
+    .sort((first, second) => first.index - second.index)
+    .slice(0, GUIDE_LIMIT);
+}
+
+function getLiveGuideEntries(value = els.answerInput.value) {
+  if (state.track === "html") return getHtmlGuideEntries(value);
+  if (state.track === "css") return getCssGuideEntries(value);
+  return getJsGuideEntries(value);
+}
+
+function getGuideEmptyState() {
+  return {
+    html: {
+      summary: "Esperando etiquetas para explicar",
+      title: "Escribe una etiqueta HTML",
+      description:
+        "Cuando detectemos piezas como h1, p, section o form, te contaremos para que sirve cada una y por que se usa.",
+    },
+    css: {
+      summary: "Esperando reglas para explicar",
+      title: "Escribe una regla CSS",
+      description:
+        "Cuando aparezcan selectores o propiedades como display, gap o color, te vamos a explicar que cambia cada una.",
+    },
+    js: {
+      summary: "Esperando codigo para explicar",
+      title: "Escribe una instruccion JS",
+      description:
+        "Cuando detectemos palabras clave o APIs como const, if o addEventListener, te vamos a contar que hacen y cuando conviene usarlas.",
+    },
+  }[state.track];
+}
+
+function renderLiveGuide() {
+  const entries = getLiveGuideEntries();
+
+  if (!entries.length) {
+    const emptyState = getGuideEmptyState();
+    els.guideSummary.textContent = emptyState.summary;
+    els.guideList.innerHTML = `
+      <article class="guide-card guide-card--empty">
+        <strong>${escapeHtml(emptyState.title)}</strong>
+        <p>${escapeHtml(emptyState.description)}</p>
+      </article>
+    `;
+    return;
+  }
+
+  const visibleCount = entries.length;
+  const label = visibleCount === 1 ? "pieza explicada" : "piezas explicadas";
+  els.guideSummary.textContent = `${visibleCount} ${label} en esta respuesta`;
+  els.guideList.innerHTML = entries
+    .map(
+      (entry) => `
+        <article class="guide-card">
+          <div class="guide-card__header">
+            <code class="guide-card__token">${escapeHtml(entry.token)}</code>
+            <span class="guide-card__kind">${escapeHtml(entry.kind)}</span>
+          </div>
+          <p class="guide-card__summary">${escapeHtml(entry.summary)}</p>
+          <p class="guide-card__usage"><strong>Cuando usarlo:</strong> ${escapeHtml(entry.usage)}</p>
+          <p class="guide-card__example-label"><strong>Ejemplo real:</strong></p>
+          <pre class="guide-card__example"><code>${escapeHtml(entry.example)}</code></pre>
+        </article>
+      `,
+    )
+    .join("");
+}
 
 function getCurrentAnswerLineContext() {
   const value = els.answerInput.value;
@@ -4451,6 +5492,7 @@ function render() {
   els.answerInput.value = localStorage.getItem(answerKey()) || "";
   renderPracticeEditor();
   renderChecklist();
+  renderLiveGuide();
 
   renderSteps(lesson.steps);
   renderLessonList();
@@ -5005,6 +6047,7 @@ els.answerInput.addEventListener("input", () => {
   saveAnswerDraft();
   renderPracticeEditor();
   renderChecklist();
+  renderLiveGuide();
 });
 
 els.answerInput.addEventListener("scroll", syncAnswerEditorScroll);
@@ -5101,6 +6144,8 @@ els.clearButton.addEventListener("click", () => {
   els.answerInput.value = "";
   localStorage.removeItem(answerKey());
   renderPracticeEditor();
+  renderChecklist();
+  renderLiveGuide();
   setFeedback("Limpio. Empeza de nuevo con una sola linea.", "warn");
 });
 

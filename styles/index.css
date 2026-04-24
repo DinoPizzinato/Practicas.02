@@ -855,6 +855,7 @@ textarea:focus {
 }
 
 .checklist-box,
+.guide-box,
 .console-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -863,6 +864,7 @@ textarea:focus {
 }
 
 .checklist-heading,
+.guide-heading,
 .console-heading {
   display: flex;
   align-items: end;
@@ -872,6 +874,7 @@ textarea:focus {
 }
 
 #checklist-summary,
+#guide-summary,
 #console-summary {
   font-size: 0.92rem;
 }
@@ -910,6 +913,115 @@ textarea:focus {
 .checklist li.is-good::before {
   content: "✓";
   color: var(--green-dark);
+}
+
+.guide-box {
+  margin-top: 16px;
+}
+
+.guide-list {
+  display: grid;
+  gap: 10px;
+}
+
+.guide-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 14px;
+}
+
+.guide-card--empty {
+  background: linear-gradient(135deg, rgba(68, 122, 110, 0.08), rgba(239, 194, 121, 0.12));
+}
+
+.guide-card--empty strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+
+.guide-card--empty p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.guide-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.guide-card__token {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #172026;
+  color: #e9f7ef;
+  font-family:
+    "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.guide-card__kind {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(47, 125, 92, 0.12);
+  color: var(--green-dark);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.guide-card__summary,
+.guide-card__usage,
+.guide-card__example-label {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.guide-card__summary {
+  color: var(--ink);
+}
+
+.guide-card__usage {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.guide-card__usage strong,
+.guide-card__example-label strong {
+  color: var(--ink);
+}
+
+.guide-card__example-label {
+  margin-top: 10px;
+  color: var(--muted);
+}
+
+.guide-card__example {
+  margin: 8px 0 0;
+  overflow: auto;
+  border: 1px solid rgba(23, 32, 38, 0.08);
+  border-radius: 8px;
+  background: #172026;
+  color: #e9f7ef;
+  padding: 12px;
+  font-family:
+    "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .console-panel {
@@ -1144,6 +1256,7 @@ textarea:focus {
   }
 
   .checklist-heading,
+  .guide-heading,
   .console-heading {
     align-items: start;
     flex-direction: column;
